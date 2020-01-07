@@ -13,8 +13,8 @@ import crosswalk.data as data
 # test case settings
 num_obs = 5
 num_covs = 3
-test_log_ratio = np.random.randn(num_obs)
-test_log_ratio_se = np.random.rand(num_obs) + 0.01
+test_obs = np.random.randn(num_obs)
+test_obs_se = np.random.rand(num_obs) + 0.01
 test_covs = {
     "cov%i" % i: np.random.randn(num_obs)
     for i in range(num_covs)
@@ -24,20 +24,20 @@ test_ref_defs = np.arange(5)[::-1]
 test_study_id = np.array([2, 1, 2, 1, 3])
 
 
-@pytest.mark.parametrize("log_ratio", [test_log_ratio])
-@pytest.mark.parametrize("log_ratio_se", [test_log_ratio_se])
+@pytest.mark.parametrize("obs", [test_obs])
+@pytest.mark.parametrize("obs_se", [test_obs_se])
 @pytest.mark.parametrize("alt_defs", [test_alt_defs])
 @pytest.mark.parametrize("ref_defs", [test_ref_defs])
 @pytest.mark.parametrize("covs", [test_covs])
 @pytest.mark.parametrize("study_id", [None, test_study_id])
-def test_cwdata_study_id(log_ratio,
-                         log_ratio_se,
+def test_cwdata_study_id(obs,
+                         obs_se,
                          alt_defs,
                          ref_defs,
                          covs,
                          study_id):
-    cwdata = data.CWData(log_ratio,
-                         log_ratio_se,
+    cwdata = data.CWData(obs,
+                         obs_se,
                          alt_defs,
                          ref_defs,
                          covs=covs,
@@ -54,22 +54,22 @@ def test_cwdata_study_id(log_ratio,
         assert cwdata.unique_study_id is None
 
 
-@pytest.mark.parametrize("log_ratio", [test_log_ratio])
-@pytest.mark.parametrize("log_ratio_se", [test_log_ratio_se])
+@pytest.mark.parametrize("obs", [test_obs])
+@pytest.mark.parametrize("obs_se", [test_obs_se])
 @pytest.mark.parametrize("alt_defs", [test_alt_defs])
 @pytest.mark.parametrize("ref_defs", [test_ref_defs])
 @pytest.mark.parametrize("covs", [test_covs])
 @pytest.mark.parametrize("study_id", [None, test_study_id])
 @pytest.mark.parametrize("add_intercept", [True, False])
-def test_cwdata_add_intercept(log_ratio,
-                              log_ratio_se,
+def test_cwdata_add_intercept(obs,
+                              obs_se,
                               alt_defs,
                               ref_defs,
                               covs,
                               study_id,
                               add_intercept):
-    cwdata = data.CWData(log_ratio,
-                         log_ratio_se,
+    cwdata = data.CWData(obs,
+                         obs_se,
                          alt_defs,
                          ref_defs,
                          covs=covs,

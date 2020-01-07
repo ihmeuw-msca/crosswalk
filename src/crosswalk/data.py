@@ -14,33 +14,33 @@ class CWData:
     """Cross Walk data structure.
     """
     def __init__(self,
-                 log_ratio,
-                 log_ratio_se,
+                 obs,
+                 obs_se,
                  alt_defs,
                  ref_defs,
                  covs=None,
                  study_id=None,
-                 add_intercept=False):
+                 add_intercept=True):
         """Constructor of CWData
 
         Args:
-            log_ratio (numpy.ndarray):
-            log_ratio_se (numpy.ndarray):
+            obs (numpy.ndarray):
+            obs_se (numpy.ndarray):
             alt_defs (numpy.ndarray):
             ref_defs (numpy.ndarray):
             covs (dict{str: numpy.ndarray} | None, optional):
             study_id (numpy.ndarray | None, optional):
             add_intercept (bool, optional):
         """
-        self.log_ratio = log_ratio
-        self.log_ratio_se = log_ratio_se
+        self.obs = obs
+        self.obs_se = obs_se
         self.alt_defs = alt_defs
         self.ref_defs = ref_defs
         self.covs = {} if covs is None else covs
         self.study_id = study_id
 
         # dimensions of observations and covariates
-        self.num_obs = self.log_ratio.size
+        self.num_obs = self.obs.size
         if not self.covs and not add_intercept:
             warnings.warn("Covariates must at least include intercept."
                           "Adding intercept automatically.")
@@ -67,11 +67,11 @@ class CWData:
     def check(self):
         """Check inputs type, shape and value.
         """
-        assert utils.is_numerical_array(self.log_ratio,
+        assert utils.is_numerical_array(self.obs,
                                         shape=(self.num_obs,))
-        assert utils.is_numerical_array(self.log_ratio_se,
+        assert utils.is_numerical_array(self.obs_se,
                                         shape=(self.num_obs,))
-        assert (self.log_ratio_se > 0.0).all()
+        assert (self.obs_se > 0.0).all()
 
         assert isinstance(self.alt_defs, np.ndarray)
         assert isinstance(self.ref_defs, np.ndarray)
@@ -126,8 +126,8 @@ class CWData:
         if self.study_id is not None:
             sort_id = np.argsort(self.study_id)
             self.study_id = self.study_id[sort_id]
-            self.log_ratio = self.log_ratio[sort_id]
-            self.log_ratio_se = self.log_ratio_se[sort_id]
+            self.obs = self.obs[sort_id]
+            self.obs_se = self.obs_se[sort_id]
             self.alt_defs = self.alt_defs[sort_id]
             self.ref_defs = self.ref_defs[sort_id]
             for cov_name in self.covs:
