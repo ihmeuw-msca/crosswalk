@@ -86,7 +86,7 @@ class CWModel:
         assert self.obs_type in ['diff_log', 'diff_logit'], "Unsupport " \
                                                             "observation type"
         assert isinstance(self.cov_names, list)
-        assert isinstance(self.gold_def, str)
+        assert self.gold_def in self.cwdata.unique_defs
 
     def create_relation_mat(self):
         """Creating relation matrix.

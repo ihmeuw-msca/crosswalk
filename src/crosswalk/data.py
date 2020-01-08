@@ -25,12 +25,19 @@ class CWData:
 
         Args:
             obs (numpy.ndarray):
+                Observations of the problem, can be log or logit differences.
             obs_se (numpy.ndarray):
+                Standard error of the observations.
             alt_defs (numpy.ndarray):
+                Alternative definitions for each observation.
             ref_defs (numpy.ndarray):
+                Reference definitions for each observation.
             covs (dict{str: numpy.ndarray} | None, optional):
+                Covariates linearly parametrized the observation.
             study_id (numpy.ndarray | None, optional):
+                Study id for each observation.
             add_intercept (bool, optional):
+                If `True`, add intercept to the current covariates.
         """
         self.obs = obs
         self.obs_se = obs_se
