@@ -27,7 +27,7 @@ class CWModel:
             obs_type (str, optional):
                 Type of observation can only be chosen from `'diff_log'` and
                 `'diff_logit'`.
-            cov_names (list{str | list{str}} | None, optional):
+            cov_names (list{str} | None, optional):
                 Name of the covarites that will be used in cross walk.
             gold_def (str | None, optional):
                 Gold standard definition.
@@ -59,7 +59,7 @@ class CWModel:
         # dimensions and indices
         self.num_var_per_def = len(self.cov_names)
         self.num_var = self.num_var_per_def*self.cwdata.num_defs
-        indices = utils.sizes_to_indices(np.array([self.num_var_per_def]*
+        indices = utils.sizes_to_indices(np.array([self.num_var_per_def] *
                                                   self.cwdata.num_defs))
         self.var_indices = {
             self.cwdata.unique_defs[i]: indices[i]
@@ -78,7 +78,8 @@ class CWModel:
         assert isinstance(self.cov_names, list)
         assert self.gold_def in self.cwdata.unique_defs
 
-    def create_relation_mat(self):
+    @property
+    def relation_mat(self):
         """Creating relation matrix.
 
         Returns:
@@ -93,28 +94,22 @@ class CWModel:
 
         relation_mat = np.zeros((self.cwdata.num_obs, self.cwdata.num_defs))
         relation_mat[range(self.cwdata.num_obs), [indices[alt_def]
-                         for alt_def in self.cwdata.alt_defs]] = 1.0
+                     for alt_def in self.cwdata.alt_defs]] = 1.0
         relation_mat[range(self.cwdata.num_obs), [indices[ref_def]
-                         for ref_def in self.cwdata.ref_defs]] = -1.0
+                     for ref_def in self.cwdata.ref_defs]] = -1.0
 
         return relation_mat
 
-    def create_cov_mat(self):
+    @property
+    def cov_mat(self):
         """Create covariates matrix.
 
         Returns:
             numpy.ndarray:
                 Returns covarites matrix.
         """
-        cov_mat = []
-        for cov_name in self.cov_names:
-            if isinstance(cov_name, str):
-                cov_mat.append(self.cwdata.covs[cov_name][:, None])
-            else:
-                cov_sub_mat = [self.cwdata.covs[name] for name in cov_name]
-                cov_mat.append(np.mean(cov_sub_mat, axis=0)[:, None])
-
-        return np.hstack(cov_mat)
+        return np.hstack([self.cwdata.covs[cov_name][:, None]
+                          for cov_name in self.cov_names])
 
     def create_design_mat(self):
         """Create linear design matrix.
@@ -123,13 +118,10 @@ class CWModel:
             numpy.ndarray:
                 Returns linear design matrix.
         """
-        relation_mat = self.create_relation_mat()
-        cov_mat = self.create_cov_mat()
 
         design_mat = (
-                relation_mat.ravel()[:, None]*
-                np.repeat(cov_mat, self.cwdata.num_defs, axis=0)
+                self.relation_mat.ravel()[:, None] *
+                np.repeat(self.cov_mat, self.cwdata.num_defs, axis=0)
         ).reshape(self.cwdata.num_obs, self.num_var)
 
         return design_mat
-
