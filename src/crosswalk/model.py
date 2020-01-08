@@ -32,7 +32,7 @@ class CWModel:
                 Name of the covarites that will be used in cross walk.
             gold_def (str | None, optional):
                 Gold standard definition.
-            order_prior (dict{str | list{str}: list{list}} | None, optional):
+            order_prior (dict{str | tuple{str}: list{list}} | None, optional):
                 Order priors between different definitions.
         """
         self.cwdata = cwdata
@@ -159,14 +159,14 @@ class CWModel:
             if key == 'all':
                 cov_names = self.cov_names
             else:
-                cov_names = [key] if isinstance(key, str) else key
-            row_indices = [self.cov_indices[cov_name] for cov_name in cov_names]
+                cov_names = (key,) if isinstance(key, str) else key
+            indices = [self.cov_indices[cov_name] for cov_name in cov_names]
             for i, d in enumerate(self.order_prior[key]):
-                sub_mat = np.zeros((len(row_indices), self.num_var))
-                sub_mat[range(len(row_indices)),
-                        np.array(self.var_indices[d[0]])[row_indices]] = -1.0
-                sub_mat[range(len(row_indices)),
-                        np.array(self.var_indices[d[1]])[row_indices]] = 1.0
+                sub_mat = np.zeros((len(indices), self.num_var))
+                sub_mat[range(len(indices)),
+                        np.array(self.var_indices[d[0]])[indices]] = -1.0
+                sub_mat[range(len(indices)),
+                        np.array(self.var_indices[d[1]])[indices]] = 1.0
                 mat.append(sub_mat)
 
         return np.vstack(mat)
