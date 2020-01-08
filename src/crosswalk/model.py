@@ -65,19 +65,9 @@ class CWModel:
             self.cwdata.unique_defs[i]: indices[i]
             for i in range(self.cwdata.num_defs)
         }
-        self.scalar_indices = {
-            self.cwdata.unique_defs[i]: i
-            for i in range(self.cwdata.num_defs)
-        }
 
         # create the design matrix
-        relation_mat = self.create_relation_mat()
-        cov_mat = self.create_cov_mat()
-
-        self.design_mat = (
-                relation_mat.ravel()[:, None]*
-                np.repeat(cov_mat, self.cwdata.num_defs, axis=0)
-        ).reshape(self.cwdata.num_obs, self.num_var)
+        self.design_mat = self.create_design_mat()
 
     def check(self):
         """Check the input type, dimension and values.
@@ -125,3 +115,21 @@ class CWModel:
                 cov_mat.append(np.mean(cov_sub_mat, axis=0)[:, None])
 
         return np.hstack(cov_mat)
+
+    def create_design_mat(self):
+        """Create linear design matrix.
+
+        Returns:
+            numpy.ndarray:
+                Returns linear design matrix.
+        """
+        relation_mat = self.create_relation_mat()
+        cov_mat = self.create_cov_mat()
+
+        design_mat = (
+                relation_mat.ravel()[:, None]*
+                np.repeat(cov_mat, self.cwdata.num_defs, axis=0)
+        ).reshape(self.cwdata.num_obs, self.num_var)
+
+        return design_mat
+
