@@ -6,6 +6,7 @@
     `model` module of the `crosswalk` package.
 """
 import numpy as np
+import warnings
 from limetr import LimeTr
 from . import data
 from . import utils
@@ -64,6 +65,10 @@ class CWModel:
         self.def_indices = {
             self.cwdata.unique_defs[i]: i
             for i in range(self.cwdata.num_defs)
+        }
+        self.cov_indices = {
+            self.cov_names[i]: i
+            for i in range(len(self.cov_names))
         }
 
         # create the design and constraint matrix
@@ -201,3 +206,100 @@ class CWModel:
             for d in self.cwdata.unique_defs
         }
         self.gamma = gamma
+
+    def obs_fun(self, x):
+        """Observation function.
+
+        Args:
+            x (numpy.ndarray):
+                Input variable from the original space.
+
+        Returns:
+            numpy.ndarray:
+                Output variable in the log or logit space.
+        """
+        if self.obs_type == 'diff_log':
+            return np.log(x)
+
+        if self.obs_type == 'diff_logit':
+            return np.log(x/(1.0 - x))
+
+        return None
+
+    def obs_inv_fun(self, y):
+        """Inverse observation function.
+
+        Args:
+            y (numpy.ndarray):
+                Input variable from log or logit space.
+
+        Returns:
+            numpy.ndarray:
+                Output variable mapped to the original space.
+        """
+        if self.obs_type == 'diff_log':
+            return np.exp(y)
+
+        if self.obs_type == 'diff_logit':
+            return 1.0/(1.0 + np.exp(-y))
+
+        return None
+
+    def predict_alt_vals(self, alt_defs, ref_defs, ref_vals,
+                    covs=None, add_intercept=True):
+        """Predict the alternative values using the result and the reference
+        values.
+
+        Args:
+            alt_defs (numpy.ndarray):
+                Alternative definitions for each observation.
+            ref_defs (numpy.ndarray):
+                Reference definitions for each observation.
+            covs (dict{str: numpy.ndarray} | None, optional):
+                Covariates linearly parametrized the observation.
+            add_intercept (bool, optional):
+                If `True`, add intercept to the current covariates.
+
+        Returns:
+            numpy.ndarray:
+                Alternative values.
+        """
+        assert self.beta is not None, "Must fit the model first."
+
+        assert utils.is_numerical_array(ref_vals)
+        num_obs = ref_vals.size
+
+        assert isinstance(alt_defs, np.ndarray)
+        assert isinstance(ref_defs, np.ndarray)
+        assert alt_defs.shape == (num_obs,)
+        assert ref_defs.shape == (num_obs,)
+        assert np.isin(alt_defs, self.cwdata.unique_defs).all()
+        assert np.isin(ref_defs, self.cwdata.unique_defs).all()
+
+        covs = {} if covs is None else covs
+
+        if not covs and not add_intercept:
+            warnings.warn("Covariates must at least include intercept."
+                          "Adding intercept automatically.")
+            add_intercept = True
+
+        assert isinstance(covs, dict)
+        if add_intercept:
+            covs.update({'intercept': np.ones(num_obs)})
+
+        for cov_name in covs:
+            assert cov_name in self.cov_names
+            assert utils.is_numerical_array(covs[cov_name],
+                                            shape=(num_obs,))
+
+        # predict differences
+        cov_names = list(covs.keys())
+        cov_mat = np.hstack([covs[cov_name][:, None]
+                             for cov_name in cov_names])
+        beta_diff = np.vstack([self.beta[alt_defs[i]] - self.beta[ref_defs[i]]
+                               for i in range(num_obs)])
+        diff = np.sum(cov_mat*beta_diff, axis=1)
+
+        alt_vals = self.obs_inv_fun(diff + self.obs_fun(ref_vals))
+
+        return alt_vals
