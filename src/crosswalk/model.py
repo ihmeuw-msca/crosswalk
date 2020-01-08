@@ -300,6 +300,8 @@ class CWModel:
                                for i in range(num_obs)])
         diff = np.sum(cov_mat*beta_diff, axis=1)
 
+        print(beta_diff)
+
         alt_vals = self.obs_inv_fun(diff + self.obs_fun(ref_vals))
 
         return alt_vals

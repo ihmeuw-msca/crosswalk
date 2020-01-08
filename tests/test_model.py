@@ -38,5 +38,56 @@ def cwdata():
 @pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
 def test_cwmodel(cwdata, obs_type, cov_names):
     cwmodel = model.CWModel(cwdata, obs_type, cov_names)
+    cwmodel.check()
 
-    assert (np.sum(cwmodel.design_mat, axis=1) == 0).all()
+
+@pytest.mark.parametrize('cov_names', [['intercept'],
+                                       ['intercept', 'cov0']])
+@pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
+def test_cwmodel_design_mat(cwdata, obs_type, cov_names):
+    cwmodel = model.CWModel(cwdata, obs_type, cov_names)
+    cov_mat = np.hstack([cwdata.covs[cov_name][:, None]
+                         for cov_name in cwmodel.cov_names])
+    design_mat = cwmodel.design_mat
+    assert (cwmodel.relation_mat.sum(axis=1) == 0.0).all()
+    assert (design_mat.sum(axis=1) == 0.0).all()
+
+
+@pytest.mark.parametrize('cov_names', [['intercept'],
+                                       ['intercept', 'cov0']])
+@pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
+@pytest.mark.parametrize('order_prior', [[[1, 2],
+                                          [2, 3]]])
+def test_cwmodel_order_prior(cwdata, obs_type, cov_names, order_prior):
+    cwmodel = model.CWModel(cwdata, obs_type, cov_names,
+                            order_prior=order_prior)
+
+    constraints_mat = cwmodel.constraint_mat
+    assert isinstance(constraints_mat, np.ndarray)
+    assert constraints_mat.shape == (len(cov_names)*len(order_prior),
+                                     cwmodel.num_var)
+    assert (constraints_mat.sum(axis=1) == 0.0).all()
+
+
+@pytest.mark.parametrize('cov_names', [['intercept']])
+@pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
+def test_cwmodel_predict_alt_vals(cwdata, obs_type, cov_names):
+    cwmodel = model.CWModel(cwdata, obs_type, cov_names)
+    cwmodel.beta = {
+        cwdata.unique_defs[i]: np.ones(cwmodel.num_var_per_def)
+        for i in range(cwdata.num_defs)
+    }
+    cwmodel.beta[cwmodel.gold_def] = np.zeros(cwmodel.num_var_per_def)
+
+    ref_vals = 0.5*np.ones(5)
+    alt_vals = cwmodel.predict_alt_vals(np.repeat(3 - cwmodel.gold_def, 5),
+                                        np.repeat(cwmodel.gold_def, 5),
+                                        ref_vals,
+                                        add_intercept=True)
+    if obs_type == 'diff_log':
+        assert np.linalg.norm(alt_vals - np.exp(1.0 + np.log(0.5))) < 1e-8
+    elif obs_type == 'diff_logit':
+        assert np.linalg.norm(alt_vals - 1.0/(1.0 + np.exp(-1.0))) < 1e-8
+    else:
+        assert alt_vals is None
+
