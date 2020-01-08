@@ -32,7 +32,7 @@ class CWModel:
                 Name of the covarites that will be used in cross walk.
             gold_def (str | None, optional):
                 Gold standard definition.
-            order_prior (list{list{str}} | None, optional):
+            order_prior (dict{str | list{str}: list{list}} | None, optional):
                 Order priors between different definitions.
         """
         self.cwdata = cwdata
@@ -52,6 +52,16 @@ class CWModel:
         self.order_prior = order_prior
 
         self.check()
+
+        if self.obs_type == 'diff_log':
+            def obs_fun(x): return np.log(x)
+            def obs_inv_fun(y): return np.exp(y)
+        else:
+            def obs_fun(x): return np.log(x/(1.0 - x))
+            def obs_inv_fun(y): return 1.0/(1.0 + np.exp(-y))
+
+        self.obs_fun = obs_fun
+        self.obs_inv_fun = obs_inv_fun
 
         # dimensions and indices
         self.num_var_per_def = len(self.cov_names)
@@ -87,6 +97,8 @@ class CWModel:
                                                             "observation type"
         assert isinstance(self.cov_names, list)
         assert self.gold_def in self.cwdata.unique_defs
+
+        assert self.order_prior is None or isinstance(self.order_prior, dict)
 
     @property
     def relation_mat(self):
@@ -143,11 +155,19 @@ class CWModel:
             return None
 
         mat = []
-        for i, d in enumerate(self.order_prior):
-            sub_mat = np.zeros((self.num_var_per_def, self.num_var))
-            sub_mat[:, self.var_indices[d[0]]] = -np.eye( self.num_var_per_def)
-            sub_mat[:, self.var_indices[d[1]]] = np.eye(self.num_var_per_def)
-            mat.append(sub_mat)
+        for key in self.order_prior:
+            if key == 'all':
+                cov_names = self.cov_names
+            else:
+                cov_names = [key] if isinstance(key, str) else key
+            row_indices = [self.cov_indices[cov_name] for cov_name in cov_names]
+            for i, d in enumerate(self.order_prior[key]):
+                sub_mat = np.zeros((len(row_indices), self.num_var))
+                sub_mat[range(len(row_indices)),
+                        np.array(self.var_indices[d[0]])[row_indices]] = -1.0
+                sub_mat[range(len(row_indices)),
+                        np.array(self.var_indices[d[1]])[row_indices]] = 1.0
+                mat.append(sub_mat)
 
         return np.vstack(mat)
 
@@ -207,44 +227,6 @@ class CWModel:
         }
         self.gamma = gamma
 
-    def obs_fun(self, x):
-        """Observation function.
-
-        Args:
-            x (numpy.ndarray):
-                Input variable from the original space.
-
-        Returns:
-            numpy.ndarray:
-                Output variable in the log or logit space.
-        """
-        if self.obs_type == 'diff_log':
-            return np.log(x)
-
-        if self.obs_type == 'diff_logit':
-            return np.log(x/(1.0 - x))
-
-        return None
-
-    def obs_inv_fun(self, y):
-        """Inverse observation function.
-
-        Args:
-            y (numpy.ndarray):
-                Input variable from log or logit space.
-
-        Returns:
-            numpy.ndarray:
-                Output variable mapped to the original space.
-        """
-        if self.obs_type == 'diff_log':
-            return np.exp(y)
-
-        if self.obs_type == 'diff_logit':
-            return 1.0/(1.0 + np.exp(-y))
-
-        return None
-
     def predict_alt_vals(self, alt_defs, ref_defs, ref_vals,
                     covs=None, add_intercept=True):
         """Predict the alternative values using the result and the reference
@@ -299,8 +281,6 @@ class CWModel:
         beta_diff = np.vstack([self.beta[alt_defs[i]] - self.beta[ref_defs[i]]
                                for i in range(num_obs)])
         diff = np.sum(cov_mat*beta_diff, axis=1)
-
-        print(beta_diff)
 
         alt_vals = self.obs_inv_fun(diff + self.obs_fun(ref_vals))
 

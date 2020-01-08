@@ -56,16 +56,15 @@ def test_cwmodel_design_mat(cwdata, obs_type, cov_names):
 @pytest.mark.parametrize('cov_names', [['intercept'],
                                        ['intercept', 'cov0']])
 @pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
-@pytest.mark.parametrize('order_prior', [[[1, 2],
-                                          [2, 3]]])
+@pytest.mark.parametrize('order_prior', [{'intercept':[[1, 2],
+                                                       [2, 3]]}])
 def test_cwmodel_order_prior(cwdata, obs_type, cov_names, order_prior):
     cwmodel = model.CWModel(cwdata, obs_type, cov_names,
                             order_prior=order_prior)
 
     constraints_mat = cwmodel.constraint_mat
     assert isinstance(constraints_mat, np.ndarray)
-    assert constraints_mat.shape == (len(cov_names)*len(order_prior),
-                                     cwmodel.num_var)
+    assert constraints_mat.shape == (2, cwmodel.num_var)
     assert (constraints_mat.sum(axis=1) == 0.0).all()
 
 
