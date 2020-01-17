@@ -24,12 +24,12 @@ def cwdata():
         for i in range(num_covs)
     }
 
-    alt_defs = np.random.choice(4, num_obs)
-    ref_defs = 3 - alt_defs
+    alt_dorms = np.random.choice(4, num_obs)
+    ref_dorms = 3 - alt_dorms
 
     study_id = np.array([1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
 
-    return crosswalk.data.CWData(obs, obs_se, alt_defs, ref_defs,
+    return crosswalk.data.CWData(obs, obs_se, alt_dorms, ref_dorms,
                                  covs=covs,
                                  study_id=study_id)
 
@@ -73,8 +73,8 @@ def test_cwmodel_order_prior(cwdata, obs_type, cov_names, order_prior):
 def test_cwmodel_predict_alt_vals(cwdata, obs_type, cov_names):
     cwmodel = model.CWModel(cwdata, obs_type, cov_names)
     cwmodel.beta = {
-        cwdata.unique_defs[i]: np.ones(cwmodel.num_var_per_def)
-        for i in range(cwdata.num_defs)
+        cwdata.unique_dorms[i]: np.ones(cwmodel.num_var_per_def)
+        for i in range(cwdata.num_dorms)
     }
     cwmodel.beta[cwmodel.gold_def] = np.zeros(cwmodel.num_var_per_def)
 

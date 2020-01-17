@@ -43,9 +43,9 @@ class CWModel:
             self.cov_names = cov_names
 
         if gold_def is None:
-            unique_ref_defs, ref_defs_counts = np.unique(self.cwdata.ref_defs,
+            unique_ref_dorms, ref_dorms_counts = np.unique(self.cwdata.ref_dorms,
                                                          return_counts=True)
-            self.gold_def = unique_ref_defs[np.argmax(ref_defs_counts)]
+            self.gold_def = unique_ref_dorms[np.argmax(ref_dorms_counts)]
         else:
             self.gold_def = gold_def
 
@@ -65,16 +65,16 @@ class CWModel:
 
         # dimensions and indices
         self.num_var_per_def = len(self.cov_names)
-        self.num_var = self.num_var_per_def*self.cwdata.num_defs
+        self.num_var = self.num_var_per_def*self.cwdata.num_dorms
         indices = utils.sizes_to_indices(np.array([self.num_var_per_def] *
-                                                  self.cwdata.num_defs))
+                                                  self.cwdata.num_dorms))
         self.var_indices = {
-            self.cwdata.unique_defs[i]: indices[i]
-            for i in range(self.cwdata.num_defs)
+            self.cwdata.unique_dorms[i]: indices[i]
+            for i in range(self.cwdata.num_dorms)
         }
         self.def_indices = {
-            self.cwdata.unique_defs[i]: i
-            for i in range(self.cwdata.num_defs)
+            self.cwdata.unique_dorms[i]: i
+            for i in range(self.cwdata.num_dorms)
         }
         self.cov_indices = {
             self.cov_names[i]: i
@@ -96,7 +96,7 @@ class CWModel:
         assert self.obs_type in ['diff_log', 'diff_logit'], "Unsupport " \
                                                             "observation type"
         assert isinstance(self.cov_names, list)
-        assert self.gold_def in self.cwdata.unique_defs
+        assert self.gold_def in self.cwdata.unique_dorms
 
         assert self.order_prior is None or isinstance(self.order_prior, dict)
 
@@ -110,11 +110,11 @@ class CWModel:
                 and -1 encode reference definition.
         """
 
-        relation_mat = np.zeros((self.cwdata.num_obs, self.cwdata.num_defs))
+        relation_mat = np.zeros((self.cwdata.num_obs, self.cwdata.num_dorms))
         relation_mat[range(self.cwdata.num_obs), [self.def_indices[alt_def]
-                     for alt_def in self.cwdata.alt_defs]] = 1.0
+                     for alt_def in self.cwdata.alt_dorms]] = 1.0
         relation_mat[range(self.cwdata.num_obs), [self.def_indices[ref_def]
-                     for ref_def in self.cwdata.ref_defs]] = -1.0
+                     for ref_def in self.cwdata.ref_dorms]] = -1.0
 
         return relation_mat
 
@@ -139,7 +139,7 @@ class CWModel:
 
         design_mat = (
                 self.relation_mat.ravel()[:, None] *
-                np.repeat(self.cov_mat, self.cwdata.num_defs, axis=0)
+                np.repeat(self.cov_mat, self.cwdata.num_dorms, axis=0)
         ).reshape(self.cwdata.num_obs, self.num_var)
 
         return design_mat
@@ -223,19 +223,19 @@ class CWModel:
 
         self.beta = {
             d: beta[self.var_indices[d]]
-            for d in self.cwdata.unique_defs
+            for d in self.cwdata.unique_dorms
         }
         self.gamma = gamma
 
-    def predict_alt_vals(self, alt_defs, ref_defs, ref_vals,
+    def predict_alt_vals(self, alt_dorms, ref_dorms, ref_vals,
                     covs=None, add_intercept=True):
         """Predict the alternative values using the result and the reference
         values.
 
         Args:
-            alt_defs (numpy.ndarray):
+            alt_dorms (numpy.ndarray):
                 Alternative definitions for each observation.
-            ref_defs (numpy.ndarray):
+            ref_dorms (numpy.ndarray):
                 Reference definitions for each observation.
             covs (dict{str: numpy.ndarray} | None, optional):
                 Covariates linearly parametrized the observation.
@@ -251,12 +251,12 @@ class CWModel:
         assert utils.is_numerical_array(ref_vals)
         num_obs = ref_vals.size
 
-        assert isinstance(alt_defs, np.ndarray)
-        assert isinstance(ref_defs, np.ndarray)
-        assert alt_defs.shape == (num_obs,)
-        assert ref_defs.shape == (num_obs,)
-        assert np.isin(alt_defs, self.cwdata.unique_defs).all()
-        assert np.isin(ref_defs, self.cwdata.unique_defs).all()
+        assert isinstance(alt_dorms, np.ndarray)
+        assert isinstance(ref_dorms, np.ndarray)
+        assert alt_dorms.shape == (num_obs,)
+        assert ref_dorms.shape == (num_obs,)
+        assert np.isin(alt_dorms, self.cwdata.unique_dorms).all()
+        assert np.isin(ref_dorms, self.cwdata.unique_dorms).all()
 
         covs = {} if covs is None else covs
 
@@ -278,7 +278,7 @@ class CWModel:
         cov_names = list(covs.keys())
         cov_mat = np.hstack([covs[cov_name][:, None]
                              for cov_name in cov_names])
-        beta_diff = np.vstack([self.beta[alt_defs[i]] - self.beta[ref_defs[i]]
+        beta_diff = np.vstack([self.beta[alt_dorms[i]] - self.beta[ref_dorms[i]]
                                for i in range(num_obs)])
         diff = np.sum(cov_mat*beta_diff, axis=1)
 

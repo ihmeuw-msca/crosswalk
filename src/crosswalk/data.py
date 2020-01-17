@@ -16,8 +16,8 @@ class CWData:
     def __init__(self,
                  obs,
                  obs_se,
-                 alt_defs,
-                 ref_defs,
+                 alt_dorms,
+                 ref_dorms,
                  covs=None,
                  study_id=None,
                  add_intercept=True):
@@ -28,9 +28,9 @@ class CWData:
                 Observations of the problem, can be log or logit differences.
             obs_se (numpy.ndarray):
                 Standard error of the observations.
-            alt_defs (numpy.ndarray):
+            alt_dorms (numpy.ndarray):
                 Alternative definitions for each observation.
-            ref_defs (numpy.ndarray):
+            ref_dorms (numpy.ndarray):
                 Reference definitions for each observation.
             covs (dict{str: numpy.ndarray} | None, optional):
                 Covariates linearly parametrized the observation.
@@ -41,8 +41,8 @@ class CWData:
         """
         self.obs = obs
         self.obs_se = obs_se
-        self.alt_defs = alt_defs
-        self.ref_defs = ref_defs
+        self.alt_dorms = alt_dorms
+        self.ref_dorms = ref_dorms
         self.covs = {} if covs is None else covs
         self.study_id = study_id
 
@@ -62,8 +62,8 @@ class CWData:
         self.check()
 
         # definition structure
-        self.num_defs, _, self.unique_defs = utils.array_structure(
-            np.hstack((self.alt_defs, self.ref_defs))
+        self.num_dorms, _, self.unique_dorms = utils.array_structure(
+            np.hstack((self.alt_dorms, self.ref_dorms))
         )
 
         # study structure
@@ -87,10 +87,10 @@ class CWData:
                                         shape=(self.num_obs,))
         assert (self.obs_se > 0.0).all()
 
-        assert isinstance(self.alt_defs, np.ndarray)
-        assert isinstance(self.ref_defs, np.ndarray)
-        assert self.alt_defs.shape == (self.num_obs,)
-        assert self.ref_defs.shape == (self.num_obs,)
+        assert isinstance(self.alt_dorms, np.ndarray)
+        assert isinstance(self.ref_dorms, np.ndarray)
+        assert self.alt_dorms.shape == (self.num_obs,)
+        assert self.ref_dorms.shape == (self.num_obs,)
 
         assert isinstance(self.covs, dict)
         assert len(self.covs) == self.num_covs
@@ -111,8 +111,8 @@ class CWData:
             self.study_id = self.study_id[sort_id]
             self.obs = self.obs[sort_id]
             self.obs_se = self.obs_se[sort_id]
-            self.alt_defs = self.alt_defs[sort_id]
-            self.ref_defs = self.ref_defs[sort_id]
+            self.alt_dorms = self.alt_dorms[sort_id]
+            self.ref_dorms = self.ref_dorms[sort_id]
             for cov_name in self.covs:
                 self.covs[cov_name] = self.covs[cov_name][sort_id]
 
@@ -123,7 +123,7 @@ class CWData:
         dimension_summary = [
             "number of observations: %i" % self.num_obs,
             "number of covariates  : %i" % self.num_covs,
-            "number of definitions : %i" % self.num_defs,
+            "number of defs/methods: %i" % self.num_dorms,
             "number of studies     : %i" % self.num_studies,
         ]
         return "\n".join(dimension_summary)
