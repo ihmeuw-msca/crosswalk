@@ -29,9 +29,9 @@ class CWData:
             obs_se (numpy.ndarray):
                 Standard error of the observations.
             alt_dorms (numpy.ndarray):
-                Alternative definitions for each observation.
+                Alternative definitions/methods for each observation.
             ref_dorms (numpy.ndarray):
-                Reference definitions for each observation.
+                Reference definitions/methods for each observation.
             covs (dict{str: numpy.ndarray} | None, optional):
                 Covariates linearly parametrized the observation.
             study_id (numpy.ndarray | None, optional):

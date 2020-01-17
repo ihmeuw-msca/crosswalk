@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import crosswalk
 import crosswalk.model as model
+from xspline import XSpline
 
 
 @pytest.fixture
@@ -90,3 +91,24 @@ def test_cwmodel_predict_alt_vals(cwdata, obs_type, cov_names):
     else:
         assert alt_vals is None
 
+
+@pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
+@pytest.mark.parametrize('spline', [None,
+                                    XSpline(np.linspace(-2.0, 2.0, 3), 3)])
+@pytest.mark.parametrize('soln_name', [None, 'cov'])
+def test_cov_model(cwdata, cov_name, spline, soln_name):
+    cov_model = model.CovModel(cov_name, spline=spline, soln_name=soln_name)
+
+    if spline is None:
+        assert cov_model.num_vars == 1
+        assert (cov_model.create_design_mat(cwdata) ==
+                cwdata.covs[cov_name][:, None]).all()
+    else:
+        assert cov_model.num_vars == spline.num_spline_bases - 1
+        assert (cov_model.create_design_mat(cwdata) ==
+                spline.design_mat(cwdata.covs[cov_name])[:, 1:]).all()
+
+    if soln_name is None:
+        assert cov_model.soln_name == cov_name
+    else:
+        assert cov_model.soln_name == soln_name

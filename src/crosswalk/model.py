@@ -8,8 +8,55 @@
 import numpy as np
 import warnings
 from limetr import LimeTr
+from xspline import XSpline
 from . import data
 from . import utils
+
+
+class CovModel:
+    """Covariate model.
+    """
+    def __init__(self, cov_name, spline=None, soln_name=None):
+        """Constructor of the CovModel.
+
+        Args:
+            cov_name(str):
+                Corresponding covariate name.
+            spline (XSpline | None, optional):
+                If using spline, passing in spline object.
+            soln_name (str):
+                Name of the corresponding covariates multiplier.
+        """
+        # check the input
+        assert isinstance(cov_name, str)
+        assert isinstance(spline, XSpline) or spline is None
+        assert isinstance(soln_name, str) or soln_name is None
+
+        self.cov_name = cov_name
+        self.spline = spline
+        self.use_spline = spline is not None
+        self.soln_name = cov_name if soln_name is None else soln_name
+
+        if self.use_spline:
+            self.num_vars = spline.num_spline_bases - 1
+        else:
+            self.num_vars = 1
+
+    def create_design_mat(self, cwdata):
+        """Create design matrix.
+
+        Args:
+            cwdata (crosswalk.CWData):
+                Data structure has all the information.
+        """
+        assert self.cov_name in cwdata.covs, "Unkown covariates, not appear" \
+                                             "in the data."
+        cov = cwdata.covs[self.cov_name]
+        if self.use_spline:
+            mat = self.spline.design_mat(cov)[:, 1:]
+        else:
+            mat = cov[:, None]
+        return mat
 
 
 class CWModel:
