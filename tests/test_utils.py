@@ -37,3 +37,15 @@ def test_is_numerical_array(x, shape):
 def test_sizes_to_indices(sizes, indices):
     my_indices = utils.sizes_to_indices(sizes)
     assert all([my_indices[i] == indices[i] for i in range(len(sizes))])
+
+
+@pytest.mark.parametrize("x", [np.array([1, 1, 2, 2, 3])])
+@pytest.mark.parametrize("num_x", [3])
+@pytest.mark.parametrize("x_sizes", [np.array([2, 2, 1])])
+@pytest.mark.parametrize("unique_x", [np.array([1, 2, 3])])
+def test_array_structure(x, num_x, x_sizes, unique_x):
+    my_num_x, my_x_sizes, my_unique_x = utils.array_structure(x)
+
+    assert my_num_x == num_x
+    assert (my_x_sizes == x_sizes).all()
+    assert (my_unique_x == unique_x).all()

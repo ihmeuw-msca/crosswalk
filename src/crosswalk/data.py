@@ -62,12 +62,19 @@ class CWData:
         self.check()
 
         # definition structure
-        self.num_defs, self.unique_defs = self.def_structure()
+        self.num_defs, _, self.unique_defs = utils.array_structure(
+            np.hstack((self.alt_defs, self.ref_defs))
+        )
 
         # study structure
-        (self.num_studies,
-         self.study_sizes,
-         self.unique_study_id) = self.study_structure()
+        if self.study_id is None:
+            self.num_studies = self.num_obs
+            self.study_sizes = np.array([1]*self.num_obs)
+            self.unique_study_id = None
+        else:
+            self.num_studies,\
+            self.study_sizes,\
+            self.unique_study_id = utils.array_structure(self.study_id)
         self.sort_by_study_id()
 
 
@@ -95,37 +102,6 @@ class CWData:
         if self.study_id is not None:
             assert utils.is_numerical_array(self.study_id,
                                             shape=(self.num_obs,))
-
-    def study_structure(self):
-        """Obtain study structure from study_id
-
-        Returns:
-            tuple{int, numpy.ndarray, numpy.ndarray}:
-                Return the number of studies, each study size and unique study
-                id.
-        """
-        if self.study_id is None:
-            num_studies = self.num_obs
-            study_sizes = np.array([1]*self.num_obs)
-            unique_study_id = None
-        else:
-            unique_study_id, study_sizes = np.unique(self.study_id,
-                                                     return_counts=True)
-            num_studies = unique_study_id.size
-
-        return num_studies, study_sizes, unique_study_id
-
-    def def_structure(self):
-        """Obtain definition structure from alt_defs and ref_defs
-
-        Returns:
-            tuple{int, numpy.ndarray}:
-                Return the number of the definitions and unique definitions.
-        """
-        unique_defs = np.unique(np.hstack((self.alt_defs, self.ref_defs)))
-        num_defs = unique_defs.size
-
-        return num_defs, unique_defs
 
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id.

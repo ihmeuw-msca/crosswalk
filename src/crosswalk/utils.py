@@ -55,3 +55,22 @@ def sizes_to_indices(sizes):
         a += size
 
     return indices
+
+
+def array_structure(x):
+    """Return the structure of the array.
+
+    Args:
+        x (numpy.ndarray):
+            The numpy array need to be studied.
+
+    Returns:
+        tuple{int, numpy.ndarray, numpy.ndarray}:
+            Return the number of unique elements in the array, counts for each
+            unique element and unique element.
+    """
+    assert isinstance(x, np.ndarray)
+    unique_x, x_sizes = np.unique(x, return_counts=True)
+    num_x = x_sizes.size
+
+    return num_x, x_sizes, unique_x
