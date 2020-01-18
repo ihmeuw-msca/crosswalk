@@ -141,6 +141,10 @@ class CWModel:
         self.design_mat = self.create_design_mat()
         self.constraint_mat = self.create_constraint_mat()
 
+        # place holder for the solutions
+        self.beta = None
+        self.gamma = None
+
     def check(self):
         """Check input type, dimension and values.
         """
@@ -201,7 +205,7 @@ class CWModel:
             return np.hstack([model.create_design_mat(self.cwdata)
                               for model in self.diff_models])
         else:
-            return np.array([]).reshape(self.cwdata.num_obs, 1)
+            return np.array([]).reshape(self.cwdata.num_obs, 0)
 
     def create_design_mat(self):
         """Create linear design matrix.
@@ -241,7 +245,6 @@ class CWModel:
 
         return np.vstack(mat)
 
-
     def fit(self, max_iter=100):
         """Optimize the model parameters.
         This is a interface to limetr.
@@ -269,19 +272,19 @@ class CWModel:
         else:
             num_constraints = self.constraint_mat.shape[0]
             cmat = np.hstack((self.constraint_mat,
-                              np.zeros(num_constraints, 1)))
+                              np.zeros((num_constraints, 1))))
 
             cvec = np.array([[-np.inf]*num_constraints,
                              [0.0]*num_constraints])
 
-            def cfun(beta):
-                return cmat.dot(beta)
+            def cfun(var):
+                return cmat.dot(var)
 
-            def jcfun(beta):
+            def jcfun(var):
                 return cmat
 
-        def fun(beta):
-            return x.dot(beta)
+        def fun(var):
+            return x.dot(var)
 
         def jfun(beta):
             return x
