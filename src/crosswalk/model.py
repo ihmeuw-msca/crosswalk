@@ -322,12 +322,14 @@ class CWModel:
             return mat
 
 
-    def fit(self, max_iter=100):
+    def fit(self, max_iter=100, inlier_pct=1.0):
         """Optimize the model parameters.
         This is a interface to limetr.
         Args:
             max_iter (int, optional):
                 Maximum number of iterations.
+            inlier_pct (float, optional):
+                How much percentage of the data do you trust.
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
@@ -371,7 +373,8 @@ class CWModel:
                     uprior=uprior,
                     C=cfun,
                     JC=jcfun,
-                    c=cvec)
+                    c=cvec,
+                    inlier_percentage=inlier_pct)
         self.beta, self.gamma, _ = lt.fitModel(inner_print_level=5,
                                                inner_max_iter=max_iter)
 
