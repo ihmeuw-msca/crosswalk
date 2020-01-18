@@ -81,8 +81,7 @@ class CWModel:
                 A list of covaraite models for the differences
             gold_dorm (str | None, optional):
                 Gold standard definition/method.
-            dorm_order_prior (dict{str | tuple{str}: list{list}} | None,
-            optional):
+            dorm_order_prior (list{list{str}} | None, optional):
                 Order priors between different definitions.
         """
         self.cwdata = cwdata
@@ -114,13 +113,12 @@ class CWModel:
         self.obs_inv_fun = obs_inv_fun
 
         # variable names
-        self.dorm_vars = ['_'.join(['dorm', str(dorm), model.soln_name])
+        self.dorm_vars = ['_'.join(['dorm', dorm, model.soln_name])
                           for dorm in self.cwdata.unique_dorms
                           for model in self.dorm_models]
         self.diff_vars = ['_'.join(['diff', model.soln_name])
                           for model in self.diff_models]
-        self.vars = ['_'.join(['dorm', str(dorm)])
-                     for dorm in self.cwdata.unique_dorms] + ['diff']
+        self.vars = [dorm for dorm in self.cwdata.unique_dorms] + ['diff']
 
         # dimensions
         self.num_vars_per_dorm = sum([model.num_vars
@@ -141,6 +139,7 @@ class CWModel:
 
         # create design matrix
         self.design_mat = self.create_design_mat()
+        self.constraint_mat = self.create_constraint_mat()
 
     def check(self):
         """Check input type, dimension and values.
@@ -158,7 +157,7 @@ class CWModel:
         assert self.gold_dorm in self.cwdata.unique_dorms
 
         assert self.dorm_order_prior is None or \
-               isinstance(self.dorm_order_prior, dict)
+               isinstance(self.dorm_order_prior, list)
 
     @property
     def relation_mat(self):
@@ -218,6 +217,31 @@ class CWModel:
 
         return mat
 
+    def create_constraint_mat(self):
+        """Create constraint matrix.
+
+        Returns:
+            numpy.ndarray:
+                Return constraints matrix.
+        """
+        if self.dorm_order_prior is None:
+            return None
+
+        mat = []
+        dorm_cov_mat = self.dorm_cov_mat
+        design_mat = np.vstack((
+            np.min(dorm_cov_mat, axis=0),
+            np.max(dorm_cov_mat, axis=0)
+        ))
+        for p in self.dorm_order_prior:
+            sub_mat = np.zeros((2, self.num_vars))
+            sub_mat[:, self.var_idx[p[0]]] = design_mat
+            sub_mat[:, self.var_idx[p[1]]] = -design_mat
+            mat.append(sub_mat)
+
+        return np.vstack(mat)
+
+
     def fit(self, max_iter=100):
         """Optimize the model parameters.
         This is a interface to limetr.
@@ -236,7 +260,25 @@ class CWModel:
 
         uprior = np.array([[-np.inf]*self.num_vars + [0.0],
                            [np.inf]*self.num_vars + [np.inf]])
-        uprior[:, self.var_idx['dorm_' + self.gold_dorm]] = 0.0
+        uprior[:, self.var_idx[self.gold_dorm]] = 0.0
+
+        if self.constraint_mat is None:
+            cfun = None
+            jcfun = None
+            cvec = None
+        else:
+            num_constraints = self.constraint_mat.shape[0]
+            cmat = np.hstack((self.constraint_mat,
+                              np.zeros(num_constraints, 1)))
+
+            cvec = np.array([[-np.inf]*num_constraints,
+                             [0.0]*num_constraints])
+
+            def cfun(beta):
+                return cmat.dot(beta)
+
+            def jcfun(beta):
+                return cmat
 
         def fun(beta):
             return x.dot(beta)
@@ -244,8 +286,12 @@ class CWModel:
         def jfun(beta):
             return x
 
-        lt = LimeTr(n, k_beta, k_gamma, y, fun, jfun, z, S=s,
-                    uprior=uprior)
+        lt = LimeTr(n, k_beta, k_gamma, y, fun, jfun, z,
+                    S=s,
+                    uprior=uprior,
+                    C=cfun,
+                    JC=jcfun,
+                    c=cvec)
         beta, gamma, _ = lt.fitModel(inner_print_level=5,
                                      inner_max_iter=max_iter)
 

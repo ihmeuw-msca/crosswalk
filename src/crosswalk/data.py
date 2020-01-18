@@ -41,8 +41,8 @@ class CWData:
         """
         self.obs = obs
         self.obs_se = obs_se
-        self.alt_dorms = alt_dorms
-        self.ref_dorms = ref_dorms
+        self.alt_dorms = alt_dorms.astype(str)
+        self.ref_dorms = ref_dorms.astype(str)
         self.covs = {} if covs is None else covs
         self.study_id = study_id
 
@@ -89,8 +89,8 @@ class CWData:
             np.argmin(self.ref_dorm_sizes)]
 
         self.dorm_idx = {
-            dorm_name: i
-            for i, dorm_name in enumerate(self.unique_dorms)
+            dorm: i
+            for i, dorm in enumerate(self.unique_dorms)
         }
 
         # study structure

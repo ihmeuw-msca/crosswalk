@@ -65,6 +65,20 @@ def test_design_mat(cwdata, dorm_models, diff_models):
     assert (design_mat.sum(axis=1) == cwmodel.diff_cov_mat.sum(axis=1)).all()
 
 
+@pytest.mark.parametrize('dorm_order_prior', [[['1', '2'], ['2', '3']]])
+def test_dorm_order_prior(cwdata, dorm_models, diff_models, dorm_order_prior):
+    obs_type = 'diff_log'
+    cwmodel = model.CWModel(cwdata, obs_type,
+                            dorm_models=dorm_models,
+                            diff_models=diff_models,
+                            dorm_order_prior=dorm_order_prior)
+
+    constraints_mat = cwmodel.constraint_mat
+    assert isinstance(constraints_mat, np.ndarray)
+    assert constraints_mat.shape == (4, cwmodel.num_vars)
+    assert (constraints_mat.sum(axis=1) == 0.0).all()
+
+
 @pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
 @pytest.mark.parametrize('spline', [None,
                                     XSpline(np.linspace(-2.0, 2.0, 3), 3)])
