@@ -6,6 +6,7 @@
     `model` module of the `crosswalk` package.
 """
 import numpy as np
+import scipy.linalg as splinalg
 from limetr import LimeTr
 from xspline import XSpline
 from . import data
@@ -80,7 +81,7 @@ class CovModel:
             mat = cov[:, None]
         return mat
 
-    def create_constraints_mat(self, num_points=20):
+    def create_constraint_mat(self, num_points=20):
         """Create constraints matrix.
 
         Args:
@@ -282,28 +283,44 @@ class CWModel:
             numpy.ndarray:
                 Return constraints matrix.
         """
-        if self.dorm_order_prior is None:
-            return None
+        mat = np.array([]).reshape(0, self.num_vars)
+        if self.dorm_order_prior is not None:
+            dorm_constraint_mat = []
+            dorm_cov_mat = self.dorm_cov_mat
+            min_dorm_cov_mat = np.min(dorm_cov_mat, axis=0)
+            max_dorm_cov_mat = np.max(dorm_cov_mat, axis=0)
 
-        mat = []
-        dorm_cov_mat = self.dorm_cov_mat
-        min_dorm_cov_mat = np.min(dorm_cov_mat, axis=0)
-        max_dorm_cov_mat = np.max(dorm_cov_mat, axis=0)
+            if np.allclose(min_dorm_cov_mat, max_dorm_cov_mat):
+                design_mat = min_dorm_cov_mat[None, :]
+            else:
+                design_mat = np.vstack((
+                    min_dorm_cov_mat,
+                    max_dorm_cov_mat
+                ))
+            for p in self.dorm_order_prior:
+                sub_mat = np.zeros((design_mat.shape[0], self.num_vars))
+                sub_mat[:, self.var_idx[p[0]]] = design_mat
+                sub_mat[:, self.var_idx[p[1]]] = -design_mat
+                dorm_constraint_mat.append(sub_mat)
+            dorm_constraint_mat = np.vstack(dorm_constraint_mat)
+            mat = np.vstack((mat, dorm_constraint_mat))
 
-        if np.allclose(min_dorm_cov_mat, max_dorm_cov_mat):
-            design_mat = min_dorm_cov_mat[None, :]
-        else:
-            design_mat = np.vstack((
-                min_dorm_cov_mat,
-                max_dorm_cov_mat
+        if any([model.use_constraints for model in self.diff_models]):
+            diff_constraint_mat = splinalg.block_diag(*[
+                model.create_constraint_mat()
+                for model in self.diff_models
+            ])
+            diff_constraint_mat = np.hstack((
+                np.zeros((diff_constraint_mat.shape[0], self.num_dorm_vars)),
+                diff_constraint_mat
             ))
-        for p in self.dorm_order_prior:
-            sub_mat = np.zeros((design_mat.shape[0], self.num_vars))
-            sub_mat[:, self.var_idx[p[0]]] = design_mat
-            sub_mat[:, self.var_idx[p[1]]] = -design_mat
-            mat.append(sub_mat)
+            mat = np.vstack((mat, diff_constraint_mat))
 
-        return np.vstack(mat)
+        if mat.size == 0:
+            return None
+        else:
+            return mat
+
 
     def fit(self, max_iter=100):
         """Optimize the model parameters.

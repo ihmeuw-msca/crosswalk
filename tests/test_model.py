@@ -131,7 +131,7 @@ def test_spline_prior(cwdata, cov_name, spline, soln_name,
                                spline_convexity=spline_convexity,
                                soln_name=soln_name)
 
-    constraints_mat = cov_model.create_constraints_mat()
+    constraints_mat = cov_model.create_constraint_mat()
 
     if not cov_model.use_constraints:
         assert constraints_mat.size == 0
