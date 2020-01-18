@@ -6,7 +6,6 @@
     `model` module of the `crosswalk` package.
 """
 import numpy as np
-import warnings
 from limetr import LimeTr
 from xspline import XSpline
 from . import data
@@ -16,7 +15,11 @@ from . import utils
 class CovModel:
     """Covariate model.
     """
-    def __init__(self, cov_name, spline=None, soln_name=None):
+    def __init__(self, cov_name,
+                 spline=None,
+                 spline_monotonicity=None,
+                 spline_convexity=None,
+                 soln_name=None):
         """Constructor of the CovModel.
 
         Args:
@@ -24,17 +27,32 @@ class CovModel:
                 Corresponding covariate name.
             spline (XSpline | None, optional):
                 If using spline, passing in spline object.
+            spline_monotonicity (str | None, optional):
+                Spline shape prior, indicate if spline is increasing or
+                decreasing.
+            spline_convexity (str | None, optional):
+                Spline shape prior, indicate if spline is convex or concave.
             soln_name (str):
                 Name of the corresponding covariates multiplier.
         """
         # check the input
         assert isinstance(cov_name, str)
         assert isinstance(spline, XSpline) or spline is None
+        if spline_monotonicity is not None:
+            assert spline_monotonicity in ['increasing', 'decreasing']
+        if spline_convexity is not None:
+            assert spline_convexity in ['convex', 'concave']
         assert isinstance(soln_name, str) or soln_name is None
 
         self.cov_name = cov_name
         self.spline = spline
+        self.spline_monotonicity = spline_monotonicity
+        self.spline_convexity = spline_convexity
         self.use_spline = spline is not None
+        self.use_constraints = self.use_spline and (
+                self.spline_monotonicity is not None or
+                self.spline_convexity is not None
+        )
         self.soln_name = cov_name if soln_name is None else soln_name
 
         if self.use_spline:
@@ -48,6 +66,10 @@ class CovModel:
         Args:
             cwdata (crosswalk.CWData):
                 Data structure has all the information.
+
+        Returns:
+            numpy.ndarray:
+                Return the design matrix from linear cov or spline.
         """
         assert self.cov_name in cwdata.covs, "Unkown covariates, not appear" \
                                              "in the data."
@@ -56,6 +78,36 @@ class CovModel:
             mat = self.spline.design_mat(cov)[:, 1:]
         else:
             mat = cov[:, None]
+        return mat
+
+    def create_constraints_mat(self, num_points=20):
+        """Create constraints matrix.
+
+        Args:
+            num_points (int, optional):
+                Number of approximation points to cover the interval for spline.
+
+        Returns:
+            numpy.ndarray:
+                Return constraints matrix if have any.
+        """
+        mat = np.array([]).reshape(0, self.num_vars)
+        if not self.use_constraints:
+            return mat
+        points = np.linspace(self.spline.knots[0],
+                             self.spline.knots[1],
+                             num_points)
+
+        if self.spline_monotonicity is not None:
+            sign = 1.0 if self.spline_monotonicity is 'decreasing' else -1.0
+            mat = np.vstack((mat,
+                             sign*self.spline.design_dmat(points, 1)[:, 1:]))
+
+        if self.spline_convexity is not None:
+            sign = 1.0 if self.spline_convexity is 'concave' else -1.0
+            mat = np.vstack((mat,
+                             sign*self.spline.design_dmat(points, 2)[:, 1:]))
+
         return mat
 
 

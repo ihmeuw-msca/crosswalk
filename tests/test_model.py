@@ -113,3 +113,29 @@ def test_cov_model(cwdata, cov_name, spline, soln_name):
         assert cov_model.soln_name == cov_name
     else:
         assert cov_model.soln_name == soln_name
+
+
+@pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
+@pytest.mark.parametrize('spline', [None,
+                                    XSpline(np.linspace(-2.0, 2.0, 3), 3)])
+@pytest.mark.parametrize('soln_name', [None, 'cov'])
+@pytest.mark.parametrize('spline_monotonicity', ['increasing',
+                                                 'decreasing',
+                                                 None])
+@pytest.mark.parametrize('spline_convexity', ['convex', 'concave', None])
+def test_spline_prior(cwdata, cov_name, spline, soln_name,
+                      spline_monotonicity, spline_convexity):
+    cov_model = model.CovModel(cov_name,
+                               spline=spline,
+                               spline_monotonicity=spline_monotonicity,
+                               spline_convexity=spline_convexity,
+                               soln_name=soln_name)
+
+    constraints_mat = cov_model.create_constraints_mat()
+
+    if not cov_model.use_constraints:
+        assert constraints_mat.size == 0
+    else:
+        num_constraints = np.sum([spline_monotonicity is not None,
+                                  spline_convexity is not None])*20
+        assert constraints_mat.shape == (num_constraints, cov_model.num_vars)
