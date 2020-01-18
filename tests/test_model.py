@@ -79,6 +79,20 @@ def test_dorm_order_prior(cwdata, dorm_models, diff_models, dorm_order_prior):
     assert (constraints_mat.sum(axis=1) == 0.0).all()
 
 
+def test_predict_alt_vals(cwdata, dorm_models, diff_models):
+    obs_type = 'diff_log'
+    cwmodel = model.CWModel(cwdata, obs_type,
+                            dorm_models=dorm_models,
+                            diff_models=diff_models)
+
+    cwmodel.fit()
+    ref_vals = np.ones(cwdata.num_obs)
+    alt_vals = cwmodel.predict_alt_vals(ref_vals)
+
+    true_alt_vals = np.exp(cwmodel.design_mat.dot(cwmodel.beta))
+
+    assert np.allclose(alt_vals, true_alt_vals)
+
 @pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
 @pytest.mark.parametrize('spline', [None,
                                     XSpline(np.linspace(-2.0, 2.0, 3), 3)])

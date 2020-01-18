@@ -144,6 +144,8 @@ class CWModel:
         # place holder for the solutions
         self.beta = None
         self.gamma = None
+        self.fixed_vars = None
+        self.random_vars = None
 
     def check(self):
         """Check input type, dimension and values.
@@ -301,11 +303,28 @@ class CWModel:
                     C=cfun,
                     JC=jcfun,
                     c=cvec)
-        beta, gamma, _ = lt.fitModel(inner_print_level=5,
-                                     inner_max_iter=max_iter)
+        self.beta, self.gamma, _ = lt.fitModel(inner_print_level=5,
+                                               inner_max_iter=max_iter)
 
-        self.beta = {
-            var: beta[self.var_idx[var]]
+        self.fixed_vars = {
+            var: self.beta[self.var_idx[var]]
             for var in self.vars
         }
-        self.gamma = gamma
+        self.random_vars = self.gamma
+
+    def predict_alt_vals(self, ref_vals):
+        """Predict the alternative definitions/methods values.
+
+        Args:
+            ref_vals (numpy.ndarray):
+                Reference definitions/methods values.
+
+        Returns:
+            numpy.ndarray:
+                Return the corrected alternative definitions/methods values.
+        """
+        # compute the differences
+        diff = self.design_mat.dot(self.beta)
+        alt_vals = self.obs_inv_fun(diff + self.obs_fun(ref_vals))
+
+        return alt_vals
