@@ -233,12 +233,18 @@ class CWModel:
 
         mat = []
         dorm_cov_mat = self.dorm_cov_mat
-        design_mat = np.vstack((
-            np.min(dorm_cov_mat, axis=0),
-            np.max(dorm_cov_mat, axis=0)
-        ))
+        min_dorm_cov_mat = np.min(dorm_cov_mat, axis=0)
+        max_dorm_cov_mat = np.max(dorm_cov_mat, axis=0)
+
+        if np.allclose(min_dorm_cov_mat, max_dorm_cov_mat):
+            design_mat = min_dorm_cov_mat[None, :]
+        else:
+            design_mat = np.vstack((
+                min_dorm_cov_mat,
+                max_dorm_cov_mat
+            ))
         for p in self.dorm_order_prior:
-            sub_mat = np.zeros((2, self.num_vars))
+            sub_mat = np.zeros((design_mat.shape[0], self.num_vars))
             sub_mat[:, self.var_idx[p[0]]] = design_mat
             sub_mat[:, self.var_idx[p[1]]] = -design_mat
             mat.append(sub_mat)
