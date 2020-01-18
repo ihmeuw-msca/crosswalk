@@ -49,3 +49,13 @@ def test_array_structure(x, num_x, x_sizes, unique_x):
     assert my_num_x == num_x
     assert (my_x_sizes == x_sizes).all()
     assert (my_unique_x == unique_x).all()
+
+
+@pytest.mark.parametrize("input", [None, np.ones(1)])
+@pytest.mark.parametrize("default", [np.zeros(1)])
+def test_default_input(input, default):
+    my_input = utils.default_input(input, default=default)
+    if input is None:
+        assert (my_input == 0.0).all()
+    else:
+        assert (my_input == 1.0).all()

@@ -5,6 +5,6 @@
 
     `crosswalk` package.
 """
-from . import data
-from . import model
+from .data import *
+from .model import *
 from . import utils

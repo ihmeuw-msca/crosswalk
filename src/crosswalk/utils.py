@@ -74,3 +74,19 @@ def array_structure(x):
     num_x = x_sizes.size
 
     return num_x, x_sizes, unique_x
+
+
+def default_input(input, default=None):
+    """Process the keyword input in the function.
+
+    Args:
+        input:
+            Keyword input for the function.
+
+    Return:
+        `default` when input is `None`, otherwise `input`.
+    """
+    if input is None:
+        return default
+    else:
+        return input

@@ -62,9 +62,36 @@ class CWData:
         self.check()
 
         # definition structure
-        self.num_dorms, _, self.unique_dorms = utils.array_structure(
+        self.num_dorms, \
+        self.dorm_sizes,\
+        self.unique_dorms = utils.array_structure(
             np.hstack((self.alt_dorms, self.ref_dorms))
         )
+        self.num_alt_dorms, \
+        self.alt_dorm_sizes, \
+        self.unique_alt_dorms = utils.array_structure(
+            self.alt_dorms
+        )
+        self.num_ref_dorms, \
+        self.ref_dorm_sizes, \
+        self.unique_ref_dorms = utils.array_structure(
+            self.ref_dorms
+        )
+        self.max_dorm = self.unique_dorms[np.argmax(self.dorm_sizes)]
+        self.min_dorm = self.unique_dorms[np.argmin(self.dorm_sizes)]
+        self.max_alt_dorm = self.unique_alt_dorms[
+            np.argmax(self.alt_dorm_sizes)]
+        self.min_alt_dorm = self.unique_alt_dorms[
+            np.argmin(self.alt_dorm_sizes)]
+        self.max_ref_dorm = self.unique_ref_dorms[
+            np.argmax(self.ref_dorm_sizes)]
+        self.min_alt_dorm = self.unique_ref_dorms[
+            np.argmin(self.ref_dorm_sizes)]
+
+        self.dorm_idx = {
+            dorm_name: i
+            for i, dorm_name in enumerate(self.unique_dorms)
+        }
 
         # study structure
         if self.study_id is None:
@@ -72,8 +99,8 @@ class CWData:
             self.study_sizes = np.array([1]*self.num_obs)
             self.unique_study_id = None
         else:
-            self.num_studies,\
-            self.study_sizes,\
+            self.num_studies, \
+            self.study_sizes, \
             self.unique_study_id = utils.array_structure(self.study_id)
         self.sort_by_study_id()
 

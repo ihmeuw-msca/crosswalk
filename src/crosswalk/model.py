@@ -64,93 +64,105 @@ class CWModel:
     """
     def __init__(self, cwdata,
                  obs_type='diff_log',
-                 cov_names=None,
-                 gold_def=None,
-                 order_prior=None):
+                 dorm_models=None,
+                 diff_models=None,
+                 gold_dorm=None,
+                 dorm_order_prior=None):
         """Constructor of CWModel.
-
         Args:
             cwdata (data.CWData):
                 Data for cross walk.
             obs_type (str, optional):
                 Type of observation can only be chosen from `'diff_log'` and
                 `'diff_logit'`.
-            cov_names (list{str} | None, optional):
-                Name of the covarites that will be used in cross walk.
-            gold_def (str | None, optional):
-                Gold standard definition.
-            order_prior (dict{str | tuple{str}: list{list}} | None, optional):
+            dorm_models (list{crosswalk.CovModel}):
+                A list of covariate models for the definitions/methods
+            diff_models (list{crosswalk.CovModel}):
+                A list of covaraite models for the differences
+            gold_dorm (str | None, optional):
+                Gold standard definition/method.
+            dorm_order_prior (dict{str | tuple{str}: list{list}} | None,
+            optional):
                 Order priors between different definitions.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
-        if cov_names is None:
-            self.cov_names = list(self.cwdata.covs.keys())
-        else:
-            self.cov_names = cov_names
+        self.dorm_models = utils.default_input(dorm_models,
+                                               [CovModel('intercept')])
+        self.diff_models = utils.default_input(diff_models, [])
+        self.gold_dorm = utils.default_input(gold_dorm, cwdata.max_ref_dorm)
+        self.dorm_order_prior = dorm_order_prior
 
-        if gold_def is None:
-            unique_ref_dorms, ref_dorms_counts = np.unique(self.cwdata.ref_dorms,
-                                                         return_counts=True)
-            self.gold_def = unique_ref_dorms[np.argmax(ref_dorms_counts)]
-        else:
-            self.gold_def = gold_def
-
-        self.order_prior = order_prior
-
+        # check input
         self.check()
 
+        # create function for prediction
         if self.obs_type == 'diff_log':
-            def obs_fun(x): return np.log(x)
-            def obs_inv_fun(y): return np.exp(y)
+            def obs_fun(x):
+                return np.log(x)
+
+            def obs_inv_fun(y):
+                return np.exp(y)
         else:
-            def obs_fun(x): return np.log(x/(1.0 - x))
-            def obs_inv_fun(y): return 1.0/(1.0 + np.exp(-y))
+            def obs_fun(x):
+                return np.log(x/(1.0 - x))
+
+            def obs_inv_fun(y):
+                return 1.0/(1.0 + np.exp(-y))
 
         self.obs_fun = obs_fun
         self.obs_inv_fun = obs_inv_fun
 
-        # dimensions and indices
-        self.num_var_per_def = len(self.cov_names)
-        self.num_var = self.num_var_per_def*self.cwdata.num_dorms
-        indices = utils.sizes_to_indices(np.array([self.num_var_per_def] *
-                                                  self.cwdata.num_dorms))
-        self.var_indices = {
-            self.cwdata.unique_dorms[i]: indices[i]
-            for i in range(self.cwdata.num_dorms)
-        }
-        self.def_indices = {
-            self.cwdata.unique_dorms[i]: i
-            for i in range(self.cwdata.num_dorms)
-        }
-        self.cov_indices = {
-            self.cov_names[i]: i
-            for i in range(len(self.cov_names))
+        # variable names
+        self.dorm_vars = ['_'.join(['dorm', str(dorm), model.soln_name])
+                          for dorm in self.cwdata.unique_dorms
+                          for model in self.dorm_models]
+        self.diff_vars = ['_'.join(['diff', model.soln_name])
+                          for model in self.diff_models]
+        self.vars = ['_'.join(['dorm', str(dorm)])
+                     for dorm in self.cwdata.unique_dorms] + ['diff']
+
+        # dimensions
+        self.num_vars_per_dorm = sum([model.num_vars
+                                      for model in self.dorm_models])
+        self.num_dorm_vars = self.num_vars_per_dorm*self.cwdata.num_dorms
+        self.num_diff_vars = sum([model.num_vars
+                                  for model in self.diff_models])
+        self.num_vars = self.num_dorm_vars + self.num_diff_vars
+
+        # indices for easy access the variables
+        var_sizes = np.array([self.num_vars_per_dorm]*self.cwdata.num_dorms +
+                             [self.num_diff_vars])
+        var_idx = utils.sizes_to_indices(var_sizes)
+        self.var_idx = {
+            var: var_idx[i]
+            for i, var in enumerate(self.vars)
         }
 
-        # create the design and constraint matrix
+        # create design matrix
         self.design_mat = self.create_design_mat()
-        self.constraint_mat = self.create_constraint_mat()
-
-        # place holder for the result
-        self.beta = None
-        self.gamma = None
 
     def check(self):
-        """Check the input type, dimension and values.
+        """Check input type, dimension and values.
         """
         assert isinstance(self.cwdata, data.CWData)
         assert self.obs_type in ['diff_log', 'diff_logit'], "Unsupport " \
                                                             "observation type"
-        assert isinstance(self.cov_names, list)
-        assert self.gold_def in self.cwdata.unique_dorms
+        assert isinstance(self.dorm_models, list)
+        assert isinstance(self.diff_models, list)
+        assert all([isinstance(model, CovModel) for model in self.dorm_models])
+        assert all([isinstance(model, CovModel) for model in self.diff_models])
+        assert all([not model.use_spline for model in self.dorm_models]), \
+            "Do not support using spline in definitions/methods model."
 
-        assert self.order_prior is None or isinstance(self.order_prior, dict)
+        assert self.gold_dorm in self.cwdata.unique_dorms
+
+        assert self.dorm_order_prior is None or \
+               isinstance(self.dorm_order_prior, dict)
 
     @property
     def relation_mat(self):
         """Creating relation matrix.
-
         Returns:
             numpy.ndarray:
                 Returns relation matrix with 1 encode alternative definition
@@ -158,177 +170,87 @@ class CWModel:
         """
 
         relation_mat = np.zeros((self.cwdata.num_obs, self.cwdata.num_dorms))
-        relation_mat[range(self.cwdata.num_obs), [self.def_indices[alt_def]
-                     for alt_def in self.cwdata.alt_dorms]] = 1.0
-        relation_mat[range(self.cwdata.num_obs), [self.def_indices[ref_def]
-                     for ref_def in self.cwdata.ref_dorms]] = -1.0
+        relation_mat[range(self.cwdata.num_obs),
+                     [self.cwdata.dorm_idx[dorm]
+                      for dorm in self.cwdata.alt_dorms]] = 1.0
+        relation_mat[range(self.cwdata.num_obs),
+                     [self.cwdata.dorm_idx[dorm]
+                      for dorm in self.cwdata.ref_dorms]] = -1.0
 
         return relation_mat
 
     @property
-    def cov_mat(self):
-        """Create covariates matrix.
+    def dorm_cov_mat(self):
+        """Create covariates matrix for definitions/methods model.
 
         Returns:
             numpy.ndarray:
                 Returns covarites matrix.
         """
-        return np.hstack([self.cwdata.covs[cov_name][:, None]
-                          for cov_name in self.cov_names])
+        return np.hstack([model.create_design_mat(self.cwdata)
+                          for model in self.dorm_models])
+
+    @property
+    def diff_cov_mat(self):
+        """Create covariates matrix for difference.
+
+        Returns:
+            numpy.ndarray:
+                Returns covarites matrix.
+        """
+        if self.diff_models:
+            return np.hstack([model.create_design_mat(self.cwdata)
+                              for model in self.diff_models])
+        else:
+            return np.array([]).reshape(self.cwdata.num_obs, 1)
 
     def create_design_mat(self):
         """Create linear design matrix.
-
         Returns:
             numpy.ndarray:
                 Returns linear design matrix.
         """
+        mat = (
+            self.relation_mat.ravel()[:, None] *
+            np.repeat(self.dorm_cov_mat, self.cwdata.num_dorms, axis=0)
+        ).reshape(self.cwdata.num_obs, self.num_dorm_vars)
+        mat = np.hstack((mat, self.diff_cov_mat))
 
-        design_mat = (
-                self.relation_mat.ravel()[:, None] *
-                np.repeat(self.cov_mat, self.cwdata.num_dorms, axis=0)
-        ).reshape(self.cwdata.num_obs, self.num_var)
-
-        return design_mat
-
-    def create_constraint_mat(self):
-        """Create constraint matrix.
-
-        Returns:
-            numpy.ndarray:
-                Return constraints matrix.
-        """
-        if self.order_prior is None:
-            return None
-
-        mat = []
-        for key in self.order_prior:
-            if key == 'all':
-                cov_names = self.cov_names
-            else:
-                cov_names = (key,) if isinstance(key, str) else key
-            indices = [self.cov_indices[cov_name] for cov_name in cov_names]
-            for i, d in enumerate(self.order_prior[key]):
-                sub_mat = np.zeros((len(indices), self.num_var))
-                sub_mat[range(len(indices)),
-                        np.array(self.var_indices[d[0]])[indices]] = -1.0
-                sub_mat[range(len(indices)),
-                        np.array(self.var_indices[d[1]])[indices]] = 1.0
-                mat.append(sub_mat)
-
-        return np.vstack(mat)
+        return mat
 
     def fit(self, max_iter=100):
         """Optimize the model parameters.
         This is a interface to limetr.
-
         Args:
             max_iter (int, optional):
                 Maximum number of iterations.
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
-        k_beta = self.num_var
+        k_beta = self.num_vars
         k_gamma = 1
-        Y = self.cwdata.obs
-        S = self.cwdata.obs_se
-        X = self.design_mat
-        Z = np.ones((self.cwdata.num_obs, 1))
+        y = self.cwdata.obs
+        s = self.cwdata.obs_se
+        x = self.design_mat
+        z = np.ones((self.cwdata.num_obs, 1))
 
-        uprior = np.array([[-np.inf]*self.num_var + [0.0],
-                           [np.inf]*self.num_var + [np.inf]])
-        uprior[:, self.var_indices[self.gold_def]] = 0.0
+        uprior = np.array([[-np.inf]*self.num_vars + [0.0],
+                           [np.inf]*self.num_vars + [np.inf]])
+        uprior[:, self.var_idx['dorm_' + self.gold_dorm]] = 0.0
 
-        def F(beta):
-            return X.dot(beta)
+        def fun(beta):
+            return x.dot(beta)
 
-        def JF(beta):
-            return X
+        def jfun(beta):
+            return x
 
-        if self.constraint_mat is not None:
-            num_constraints = self.constraint_mat.shape[0]
-            C_mat = np.hstack((self.constraint_mat,
-                               np.zeros((num_constraints, 1))))
-            c = np.array([[0.0]*num_constraints,
-                          [np.inf]*num_constraints])
-
-            def C(beta):
-                return C_mat.dot(beta)
-
-            def JC(beta):
-                return C_mat
-
-        else:
-            C = None
-            JC = None
-            c = None
-
-        lt = LimeTr(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
-                    uprior=uprior, C=C, JC=JC, c=c)
+        lt = LimeTr(n, k_beta, k_gamma, y, fun, jfun, z, S=s,
+                    uprior=uprior)
         beta, gamma, _ = lt.fitModel(inner_print_level=5,
                                      inner_max_iter=max_iter)
 
         self.beta = {
-            d: beta[self.var_indices[d]]
-            for d in self.cwdata.unique_dorms
+            var: beta[self.var_idx[var]]
+            for var in self.vars
         }
         self.gamma = gamma
-
-    def predict_alt_vals(self, alt_dorms, ref_dorms, ref_vals,
-                    covs=None, add_intercept=True):
-        """Predict the alternative values using the result and the reference
-        values.
-
-        Args:
-            alt_dorms (numpy.ndarray):
-                Alternative definitions for each observation.
-            ref_dorms (numpy.ndarray):
-                Reference definitions for each observation.
-            covs (dict{str: numpy.ndarray} | None, optional):
-                Covariates linearly parametrized the observation.
-            add_intercept (bool, optional):
-                If `True`, add intercept to the current covariates.
-
-        Returns:
-            numpy.ndarray:
-                Alternative values.
-        """
-        assert self.beta is not None, "Must fit the model first."
-
-        assert utils.is_numerical_array(ref_vals)
-        num_obs = ref_vals.size
-
-        assert isinstance(alt_dorms, np.ndarray)
-        assert isinstance(ref_dorms, np.ndarray)
-        assert alt_dorms.shape == (num_obs,)
-        assert ref_dorms.shape == (num_obs,)
-        assert np.isin(alt_dorms, self.cwdata.unique_dorms).all()
-        assert np.isin(ref_dorms, self.cwdata.unique_dorms).all()
-
-        covs = {} if covs is None else covs
-
-        if not covs and not add_intercept:
-            warnings.warn("Covariates must at least include intercept."
-                          "Adding intercept automatically.")
-            add_intercept = True
-
-        assert isinstance(covs, dict)
-        if add_intercept:
-            covs.update({'intercept': np.ones(num_obs)})
-
-        for cov_name in covs:
-            assert cov_name in self.cov_names
-            assert utils.is_numerical_array(covs[cov_name],
-                                            shape=(num_obs,))
-
-        # predict differences
-        cov_names = list(covs.keys())
-        cov_mat = np.hstack([covs[cov_name][:, None]
-                             for cov_name in cov_names])
-        beta_diff = np.vstack([self.beta[alt_dorms[i]] - self.beta[ref_dorms[i]]
-                               for i in range(num_obs)])
-        diff = np.sum(cov_mat*beta_diff, axis=1)
-
-        alt_vals = self.obs_inv_fun(diff + self.obs_fun(ref_vals))
-
-        return alt_vals
