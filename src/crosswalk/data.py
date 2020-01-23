@@ -6,6 +6,7 @@
     `data` module of the `crosswalk` package.
 """
 import numpy as np
+import pandas as pd
 import warnings
 from . import utils
 
@@ -14,6 +15,7 @@ class CWData:
     """Cross Walk data structure.
     """
     def __init__(self,
+                 df,
                  obs,
                  obs_se,
                  alt_dorms,
@@ -24,37 +26,40 @@ class CWData:
         """Constructor of CWData
 
         Args:
-            obs (numpy.ndarray):
+            df (pandas.DataFrame):
+                Dataframe from csv file that store the data.
+            obs (str):
                 Observations of the problem, can be log or logit differences.
-            obs_se (numpy.ndarray):
+            obs_se (str):
                 Standard error of the observations.
-            alt_dorms (numpy.ndarray):
+            alt_dorms (str):
                 Alternative definitions/methods for each observation.
-            ref_dorms (numpy.ndarray):
+            ref_dorms (str):
                 Reference definitions/methods for each observation.
-            covs (dict{str: numpy.ndarray} | None, optional):
+            covs (list{str} | None, optional):
                 Covariates linearly parametrized the observation.
             study_id (numpy.ndarray | None, optional):
                 Study id for each observation.
             add_intercept (bool, optional):
                 If `True`, add intercept to the current covariates.
         """
-        self.obs = obs
-        self.obs_se = obs_se
-        self.alt_dorms = alt_dorms.astype(str)
-        self.ref_dorms = ref_dorms.astype(str)
-        self.covs = {} if covs is None else covs
-        self.study_id = study_id
+        self.df = df
+        self.obs = df[obs].values
+        self.obs_se = df[obs_se].values
+        self.alt_dorms = df[alt_dorms].values.astype(str)
+        self.ref_dorms = df[ref_dorms].values.astype(str)
+        self.covs = pd.DataFrame() if covs is None else df[covs].copy()
+        self.study_id = None if study_id is None else df[study_id].values
 
         # dimensions of observations and covariates
         self.num_obs = self.obs.size
-        if not self.covs and not add_intercept:
+        if self.covs.empty and not add_intercept:
             warnings.warn("Covariates must at least include intercept."
                           "Adding intercept automatically.")
             add_intercept = True
 
         if add_intercept:
-            self.covs.update({'intercept': np.ones(self.num_obs)})
+            self.covs['intercept'] = np.ones(self.num_obs)
 
         self.num_covs = len(self.covs)
 
@@ -119,12 +124,8 @@ class CWData:
         assert self.alt_dorms.shape == (self.num_obs,)
         assert self.ref_dorms.shape == (self.num_obs,)
 
-        assert isinstance(self.covs, dict)
-        assert len(self.covs) == self.num_covs
-        for cov_name in self.covs:
-            assert isinstance(cov_name, str)
-            assert utils.is_numerical_array(self.covs[cov_name],
-                                            shape=(self.num_obs,))
+        assert isinstance(self.covs, pd.DataFrame)
+        assert self.covs.shape[0] == self.num_covs
 
         if self.study_id is not None:
             assert utils.is_numerical_array(self.study_id,
@@ -140,8 +141,7 @@ class CWData:
             self.obs_se = self.obs_se[sort_id]
             self.alt_dorms = self.alt_dorms[sort_id]
             self.ref_dorms = self.ref_dorms[sort_id]
-            for cov_name in self.covs:
-                self.covs[cov_name] = self.covs[cov_name][sort_id]
+            self.covs.reindex(sort_id)
 
 
     def __repr__(self):
