@@ -15,6 +15,7 @@ import crosswalk.data as data
 num_obs = 5
 num_covs = 3
 
+
 @pytest.fixture()
 def df():
     df = pd.DataFrame({

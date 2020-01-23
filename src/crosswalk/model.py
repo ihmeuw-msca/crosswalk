@@ -72,9 +72,9 @@ class CovModel:
             numpy.ndarray:
                 Return the design matrix from linear cov or spline.
         """
-        assert self.cov_name in cwdata.covs, "Unkown covariates, not appear" \
-                                             "in the data."
-        cov = cwdata.covs[self.cov_name]
+        assert self.cov_name in cwdata.covs.columns,\
+            "Unkown covariates, not appear in the data."
+        cov = cwdata.covs[self.cov_name].values
         if self.use_spline:
             mat = self.spline.design_mat(cov)[:, 1:]
         else:

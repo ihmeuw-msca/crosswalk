@@ -6,6 +6,7 @@
     Test `model` module for the `crosswalk` package.
 """
 import numpy as np
+import pandas as pd
 import pytest
 import crosswalk
 import crosswalk.model as model
@@ -16,23 +17,24 @@ from xspline import XSpline
 def cwdata():
     num_obs = 10
     num_covs = 3
+    df = pd.DataFrame({
+        'obs': np.random.randn(num_obs),
+        'obs_se': 0.1 + np.random.rand(num_obs)*0.1,
+        'alt_dorms': np.random.choice(4, num_obs),
+        'study_id': np.array([1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
+    })
+    df['ref_dorms'] = 3 - df['alt_dorms'].values
+    for i in range(num_covs):
+        df['cov%i' % i] = np.random.randn(num_obs)
 
-    obs = np.random.randn(num_obs)
-    obs_se = 0.1 + np.random.rand(num_obs)*0.1
 
-    covs = {
-        'cov%i' % i: np.random.randn(num_obs)
-        for i in range(num_covs)
-    }
-
-    alt_dorms = np.random.choice(4, num_obs)
-    ref_dorms = 3 - alt_dorms
-
-    study_id = np.array([1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
-
-    return crosswalk.data.CWData(obs, obs_se, alt_dorms, ref_dorms,
-                                 covs=covs,
-                                 study_id=study_id)
+    return crosswalk.data.CWData(df,
+                                 'obs',
+                                 'obs_se',
+                                 'alt_dorms',
+                                 'ref_dorms',
+                                 covs=['cov%i' % i for i in range(num_covs)],
+                                 study_id='study_id')
 
 
 @pytest.fixture
