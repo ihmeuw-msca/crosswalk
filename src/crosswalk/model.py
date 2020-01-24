@@ -191,6 +191,9 @@ class CWModel:
         }
 
         # create design matrix
+        self.relation_mat = self.create_relation_mat()
+        self.dorm_cov_mat = self.create_dorm_cov_mat()
+        self.diff_cov_mat = self.create_diff_cov_mat()
         self.design_mat = self.create_design_mat()
         self.constraint_mat = self.create_constraint_mat()
 
@@ -218,8 +221,7 @@ class CWModel:
         assert self.dorm_order_prior is None or \
                isinstance(self.dorm_order_prior, list)
 
-    @property
-    def relation_mat(self):
+    def create_relation_mat(self):
         """Creating relation matrix.
         Returns:
             numpy.ndarray:
@@ -237,8 +239,7 @@ class CWModel:
 
         return relation_mat
 
-    @property
-    def dorm_cov_mat(self):
+    def create_dorm_cov_mat(self):
         """Create covariates matrix for definitions/methods model.
 
         Returns:
@@ -248,8 +249,7 @@ class CWModel:
         return np.hstack([model.create_design_mat(self.cwdata)
                           for model in self.dorm_models])
 
-    @property
-    def diff_cov_mat(self):
+    def create_diff_cov_mat(self):
         """Create covariates matrix for difference.
 
         Returns:
@@ -386,11 +386,9 @@ class CWModel:
 
     def predict_alt_vals(self, ref_vals):
         """Predict the alternative definitions/methods values.
-
         Args:
             ref_vals (numpy.ndarray):
                 Reference definitions/methods values.
-
         Returns:
             numpy.ndarray:
                 Return the corrected alternative definitions/methods values.
