@@ -58,7 +58,7 @@ class CWData:
         self.study_id = None if study_id is None else df[study_id].values
 
         # dimensions of observations and covariates
-        self.num_obs = self.obs.size
+        self.num_obs = self.df.shape[0]
         if self.covs.empty and not add_intercept:
             warnings.warn("Covariates must at least include intercept."
                           "Adding intercept automatically.")
@@ -150,6 +150,14 @@ class CWData:
             self.ref_dorms = self.ref_dorms[sort_id]
             self.covs.reindex(sort_id)
 
+    def copy_dorm_structure(self, cwdata):
+        """Copy the dorm structure from other"""
+        assert cwdata.num_dorms >= self.num_dorms
+        assert all([dorm in cwdata.unique_dorms for dorm in self.unique_dorms])
+
+        self.num_dorms = cwdata.num_dorms
+        self.unique_dorms = cwdata.unique_dorms
+        self.dorm_idx = cwdata.dorm_idx
 
     def __repr__(self):
         """Summary of the object.

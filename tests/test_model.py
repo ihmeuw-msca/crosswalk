@@ -81,19 +81,32 @@ def test_dorm_order_prior(cwdata, dorm_models, diff_models, dorm_order_prior):
     assert (constraints_mat.sum(axis=1) == 0.0).all()
 
 
-def test_predict_alt_vals(cwdata, dorm_models, diff_models):
+@pytest.mark.parametrize('alt_dorm', ['2', '3'])
+@pytest.mark.parametrize('ref_dorm', ['3'])
+def test_adjust_alt_vals(cwdata, dorm_models, diff_models, alt_dorm, ref_dorm):
     obs_type = 'diff_log'
+    gold_dorm = ref_dorm
     cwmodel = model.CWModel(cwdata, obs_type,
                             dorm_models=dorm_models,
-                            diff_models=diff_models)
-
+                            diff_models=diff_models,
+                            gold_dorm=gold_dorm)
     cwmodel.fit()
-    ref_vals = np.ones(cwdata.num_obs)
-    alt_vals = cwmodel.predict_alt_vals(ref_vals)
+    new_df = pd.DataFrame({
+        'dorms': np.array([alt_dorm]*cwdata.num_obs),
+        'vals': np.ones(cwdata.num_obs)
+    })
+    for cov in cwdata.covs.columns:
+        new_df[cov] = np.ones(cwdata.num_obs)
 
-    true_alt_vals = np.exp(cwmodel.design_mat.dot(cwmodel.beta))
+    ref_vals = cwmodel.adjust_alt_vals(new_df,
+                                       alt_dorms='dorms',
+                                       alt_vals='vals')
+    assert np.allclose(ref_vals, np.exp(
+        np.sum(cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
+               cwmodel.beta[cwmodel.var_idx[alt_dorm]]) -
+        np.sum(cwmodel.beta[cwmodel.var_idx['diff']])
+    ))
 
-    assert np.allclose(alt_vals, true_alt_vals)
 
 @pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
 @pytest.mark.parametrize('spline', [None,

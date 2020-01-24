@@ -426,17 +426,44 @@ class CWModel:
         }
         self.random_vars = self.gamma
 
-    def predict_alt_vals(self, ref_vals):
-        """Predict the alternative definitions/methods values.
+    def adjust_alt_vals(self, df, alt_dorms, alt_vals):
+        """Adjust alternative values.
+
         Args:
-            ref_vals (numpy.ndarray):
-                Reference definitions/methods values.
+            df (pd.DataFrame):
+                Data frame of the alternative values that need to be adjusted.
+            alt_dorms (str):
+                Name of the column in `df` that contains the alternative
+                definitions or methods.
+            alt_vals (str):
+                Name of the column in `df` that contains the alternative values.
+
         Returns:
             numpy.ndarray:
-                Return the corrected alternative definitions/methods values.
+                The adjusted alternative values.
         """
-        # compute the differences
-        diff = self.design_mat.dot(self.beta)
-        alt_vals = self.obs_inv_fun(diff + self.obs_fun(ref_vals))
+        df_copy = df.copy()
+        ref_dorms = 'ref_dorms'
+        df_copy[ref_dorms] = np.array([self.gold_dorm]*df_copy.shape[0])
+        new_cwdata = data.CWData(df_copy,
+                                 alt_dorms=alt_dorms,
+                                 ref_dorms=ref_dorms,
+                                 covs=list(self.cwdata.covs.columns))
 
-        return alt_vals
+        # transfer data dorm structure to the new_cwdata
+        new_cwdata.copy_dorm_structure(self.cwdata)
+
+        # create new design matrix
+        new_relation_mat = self.create_relation_mat(cwdata=new_cwdata)
+        new_dorm_cov_mat = self.create_dorm_cov_mat(cwdata=new_cwdata)
+        new_diff_cov_mat = self.create_diff_cov_mat(cwdata=new_cwdata)
+        new_design_mat = self.create_design_mat(cwdata=new_cwdata,
+                                                relation_mat=new_relation_mat,
+                                                dorm_cov_mat=new_dorm_cov_mat,
+                                                diff_cov_mat=new_diff_cov_mat)
+
+        # compute the corresponding gold_dorm value
+        ref_vals = self.obs_inv_fun(self.obs_fun(df[alt_vals].values) -
+                                    new_design_mat.dot(self.beta))
+
+        return ref_vals
