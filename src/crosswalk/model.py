@@ -221,58 +221,100 @@ class CWModel:
         assert self.dorm_order_prior is None or \
                isinstance(self.dorm_order_prior, list)
 
-    def create_relation_mat(self):
+    def create_relation_mat(self, cwdata=None):
         """Creating relation matrix.
+
+        Args:
+            cwdata (data.CWData | None, optional):
+                Optional data set, if None, use `self.cwdata`.
+
         Returns:
             numpy.ndarray:
                 Returns relation matrix with 1 encode alternative definition
                 and -1 encode reference definition.
         """
+        cwdata = utils.default_input(cwdata,
+                                     default=self.cwdata)
+        assert isinstance(cwdata, data.CWData)
 
-        relation_mat = np.zeros((self.cwdata.num_obs, self.cwdata.num_dorms))
-        relation_mat[range(self.cwdata.num_obs),
-                     [self.cwdata.dorm_idx[dorm]
-                      for dorm in self.cwdata.alt_dorms]] = 1.0
-        relation_mat[range(self.cwdata.num_obs),
-                     [self.cwdata.dorm_idx[dorm]
-                      for dorm in self.cwdata.ref_dorms]] = -1.0
+        relation_mat = np.zeros((cwdata.num_obs, cwdata.num_dorms))
+        relation_mat[range(cwdata.num_obs),
+                     [cwdata.dorm_idx[dorm]
+                      for dorm in cwdata.alt_dorms]] = 1.0
+        relation_mat[range(cwdata.num_obs),
+                     [cwdata.dorm_idx[dorm]
+                      for dorm in cwdata.ref_dorms]] = -1.0
 
         return relation_mat
 
-    def create_dorm_cov_mat(self):
+    def create_dorm_cov_mat(self, cwdata=None):
         """Create covariates matrix for definitions/methods model.
 
+        Args:
+            cwdata (data.CWData | None, optional):
+                Optional data set, if None, use `self.cwdata`.
+
         Returns:
             numpy.ndarray:
                 Returns covarites matrix.
         """
-        return np.hstack([model.create_design_mat(self.cwdata)
+        cwdata = utils.default_input(cwdata,
+                                     default=self.cwdata)
+        assert isinstance(cwdata, data.CWData)
+
+        return np.hstack([model.create_design_mat(cwdata)
                           for model in self.dorm_models])
 
-    def create_diff_cov_mat(self):
+    def create_diff_cov_mat(self, cwdata=None):
         """Create covariates matrix for difference.
+
+        Args:
+            cwdata (data.CWData | None, optional):
+                Optional data set, if None, use `self.cwdata`.
 
         Returns:
             numpy.ndarray:
                 Returns covarites matrix.
         """
+        cwdata = utils.default_input(cwdata,
+                                     default=self.cwdata)
+        assert isinstance(cwdata, data.CWData)
+
         if self.diff_models:
-            return np.hstack([model.create_design_mat(self.cwdata)
+            return np.hstack([model.create_design_mat(cwdata)
                               for model in self.diff_models])
         else:
-            return np.array([]).reshape(self.cwdata.num_obs, 0)
+            return np.array([]).reshape(cwdata.num_obs, 0)
 
-    def create_design_mat(self):
+    def create_design_mat(self,
+                          cwdata=None,
+                          relation_mat=None,
+                          dorm_cov_mat=None,
+                          diff_cov_mat=None):
         """Create linear design matrix.
+
+        Args:
+            cwdata (data.CWData | None, optional):
+                Optional data set, if None, use `self.cwdata`.
+
         Returns:
             numpy.ndarray:
                 Returns linear design matrix.
         """
+        cwdata = utils.default_input(cwdata,
+                                     default=self.cwdata)
+        relation_mat = utils.default_input(relation_mat,
+                                           default=self.relation_mat)
+        dorm_cov_mat = utils.default_input(dorm_cov_mat,
+                                           default=self.dorm_cov_mat)
+        diff_cov_mat = utils.default_input(diff_cov_mat,
+                                           default=self.diff_cov_mat)
+
         mat = (
-            self.relation_mat.ravel()[:, None] *
-            np.repeat(self.dorm_cov_mat, self.cwdata.num_dorms, axis=0)
-        ).reshape(self.cwdata.num_obs, self.num_dorm_vars)
-        mat = np.hstack((mat, self.diff_cov_mat))
+            relation_mat.ravel()[:, None] *
+            np.repeat(dorm_cov_mat, cwdata.num_dorms, axis=0)
+        ).reshape(cwdata.num_obs, self.num_dorm_vars)
+        mat = np.hstack((mat, diff_cov_mat))
 
         return mat
 
