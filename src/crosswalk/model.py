@@ -96,7 +96,7 @@ class CovModel:
         if not self.use_constraints:
             return mat
         points = np.linspace(self.spline.knots[0],
-                             self.spline.knots[1],
+                             self.spline.knots[-1],
                              num_points)
 
         if self.spline_monotonicity is not None:
