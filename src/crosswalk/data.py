@@ -16,10 +16,10 @@ class CWData:
     """
     def __init__(self,
                  df,
-                 obs,
-                 obs_se,
-                 alt_dorms,
-                 ref_dorms,
+                 obs=None,
+                 obs_se=None,
+                 alt_dorms=None,
+                 ref_dorms=None,
                  covs=None,
                  study_id=None,
                  add_intercept=True):
@@ -28,13 +28,13 @@ class CWData:
         Args:
             df (pandas.DataFrame):
                 Dataframe from csv file that store the data.
-            obs (str):
+            obs (str | None, optional):
                 Observations of the problem, can be log or logit differences.
-            obs_se (str):
+            obs_se (str | None, optional):
                 Standard error of the observations.
-            alt_dorms (str):
+            alt_dorms (str | None, optional):
                 Alternative definitions/methods for each observation.
-            ref_dorms (str):
+            ref_dorms (str | None, optional):
                 Reference definitions/methods for each observation.
             covs (list{str} | None, optional):
                 Covariates linearly parametrized the observation.
@@ -44,10 +44,16 @@ class CWData:
                 If `True`, add intercept to the current covariates.
         """
         self.df = df
-        self.obs = df[obs].values
-        self.obs_se = df[obs_se].values
-        self.alt_dorms = df[alt_dorms].values.astype(str)
-        self.ref_dorms = df[ref_dorms].values.astype(str)
+        self.obs = None if obs is None else df[obs].values
+        self.obs_se = None if obs_se is None else df[obs_se].values
+        if alt_dorms is None:
+            self.alt_dorms = np.array(['1']*self.df.shape[0])
+        else:
+            self.alt_dorms = df[alt_dorms].values.astype(str)
+        if ref_dorms is None:
+            self.ref_dorms = np.array(['0']*self.df.shape[0])
+        else:
+            self.ref_dorms = df[ref_dorms].values.astype(str)
         self.covs = pd.DataFrame() if covs is None else df[covs].copy()
         self.study_id = None if study_id is None else df[study_id].values
 
@@ -113,11 +119,12 @@ class CWData:
     def check(self):
         """Check inputs type, shape and value.
         """
-        assert utils.is_numerical_array(self.obs,
-                                        shape=(self.num_obs,))
-        assert utils.is_numerical_array(self.obs_se,
-                                        shape=(self.num_obs,))
-        assert (self.obs_se > 0.0).all()
+        assert self.obs is None or utils.is_numerical_array(
+            self.obs, shape=(self.num_obs,))
+        assert self.obs_se is None or utils.is_numerical_array(
+            self.obs_se, shape=(self.num_obs,))
+        if utils.is_numerical_array(self.obs_se):
+            assert (self.obs_se > 0.0).all()
 
         assert isinstance(self.alt_dorms, np.ndarray)
         assert isinstance(self.ref_dorms, np.ndarray)
