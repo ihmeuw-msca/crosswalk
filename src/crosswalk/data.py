@@ -148,7 +148,7 @@ class CWData:
             self.obs_se = self.obs_se[sort_id]
             self.alt_dorms = self.alt_dorms[sort_id]
             self.ref_dorms = self.ref_dorms[sort_id]
-            self.covs.reindex(sort_id)
+            self.covs = self.covs.reindex(sort_id)
 
     def copy_dorm_structure(self, cwdata):
         """Copy the dorm structure from other"""
