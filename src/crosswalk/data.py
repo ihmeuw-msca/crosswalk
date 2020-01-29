@@ -67,7 +67,7 @@ class CWData:
         if add_intercept:
             self.covs['intercept'] = np.ones(self.num_obs)
 
-        self.num_covs = len(self.covs)
+        self.num_covs = self.covs.shape[1]
 
         # check inputs
         self.check()
@@ -132,7 +132,7 @@ class CWData:
         assert self.ref_dorms.shape == (self.num_obs,)
 
         assert isinstance(self.covs, pd.DataFrame)
-        assert self.covs.shape[0] == self.num_covs
+        assert self.covs.shape[1] == self.num_covs
 
         if self.study_id is not None:
             assert utils.is_numerical_array(self.study_id,
