@@ -179,7 +179,7 @@ class CWModel:
 
         # create design matrix
         self.relation_mat = self.create_relation_mat()
-        self.dorm_cov_mat = self.create_dorm_cov_mat()
+        self.cov_mat = self.create_cov_mat()
         self.design_mat = self.create_design_mat()
         self.constraint_mat = self.create_constraint_mat()
 
@@ -228,7 +228,7 @@ class CWModel:
 
         return relation_mat
 
-    def create_dorm_cov_mat(self, cwdata=None):
+    def create_cov_mat(self, cwdata=None):
         """Create covariates matrix for definitions/methods model.
 
         Args:
@@ -249,7 +249,7 @@ class CWModel:
     def create_design_mat(self,
                           cwdata=None,
                           relation_mat=None,
-                          dorm_cov_mat=None):
+                          cov_mat=None):
         """Create linear design matrix.
 
         Args:
@@ -257,8 +257,8 @@ class CWModel:
                 Optional data set, if None, use `self.cwdata`.
             relation_mat (numpy.ndarray | None, optional):
                 Optional relation matrix, if None, use `self.relation_mat`
-            dorm_cov_mat (numpy.ndarray | None, optional):
-                Optional covariates matrix, if None, use `self.dorm_cov_mat`
+            cov_mat (numpy.ndarray | None, optional):
+                Optional covariates matrix, if None, use `self.cov_mat`
 
         Returns:
             numpy.ndarray:
@@ -268,12 +268,12 @@ class CWModel:
                                      default=self.cwdata)
         relation_mat = utils.default_input(relation_mat,
                                            default=self.relation_mat)
-        dorm_cov_mat = utils.default_input(dorm_cov_mat,
-                                           default=self.dorm_cov_mat)
+        cov_mat = utils.default_input(cov_mat,
+                                           default=self.cov_mat)
 
         mat = (
             relation_mat.ravel()[:, None] *
-            np.repeat(dorm_cov_mat, cwdata.num_dorms, axis=0)
+            np.repeat(cov_mat, cwdata.num_dorms, axis=0)
         ).reshape(cwdata.num_obs, self.num_vars)
 
         return mat
@@ -288,16 +288,16 @@ class CWModel:
         mat = np.array([]).reshape(0, self.num_vars)
         if self.order_prior is not None:
             dorm_constraint_mat = []
-            dorm_cov_mat = self.dorm_cov_mat
-            min_dorm_cov_mat = np.min(dorm_cov_mat, axis=0)
-            max_dorm_cov_mat = np.max(dorm_cov_mat, axis=0)
+            cov_mat = self.cov_mat
+            min_cov_mat = np.min(cov_mat, axis=0)
+            max_cov_mat = np.max(cov_mat, axis=0)
 
-            if np.allclose(min_dorm_cov_mat, max_dorm_cov_mat):
-                design_mat = min_dorm_cov_mat[None, :]
+            if np.allclose(min_cov_mat, max_cov_mat):
+                design_mat = min_cov_mat[None, :]
             else:
                 design_mat = np.vstack((
-                    min_dorm_cov_mat,
-                    max_dorm_cov_mat
+                    min_cov_mat,
+                    max_cov_mat
                 ))
             for p in self.order_prior:
                 sub_mat = np.zeros((design_mat.shape[0], self.num_vars))
@@ -403,10 +403,10 @@ class CWModel:
 
         # create new design matrix
         new_relation_mat = self.create_relation_mat(cwdata=new_cwdata)
-        new_dorm_cov_mat = self.create_dorm_cov_mat(cwdata=new_cwdata)
+        new_cov_mat = self.create_cov_mat(cwdata=new_cwdata)
         new_design_mat = self.create_design_mat(cwdata=new_cwdata,
                                                 relation_mat=new_relation_mat,
-                                                dorm_cov_mat=new_dorm_cov_mat)
+                                                cov_mat=new_cov_mat)
 
         # compute the corresponding gold_dorm value
         ref_vals = self.obs_inv_fun(self.obs_fun(df[alt_vals].values) -
