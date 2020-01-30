@@ -137,7 +137,7 @@ class CWModel:
         self.cwdata = cwdata
         self.obs_type = obs_type
         self.cov_models = utils.default_input(cov_models,
-                                               [CovModel('intercept')])
+                                              [CovModel('intercept')])
         self.gold_dorm = utils.default_input(gold_dorm, cwdata.max_ref_dorm)
         self.order_prior = order_prior
 
@@ -193,17 +193,14 @@ class CWModel:
         """Check input type, dimension and values.
         """
         assert isinstance(self.cwdata, data.CWData)
-        assert self.obs_type in ['diff_log', 'diff_logit'], "Unsupport " \
-                                                            "observation type"
+        assert self.obs_type in ['diff_log', 'diff_logit'], \
+            "Unsupport observation type"
         assert isinstance(self.cov_models, list)
         assert all([isinstance(model, CovModel) for model in self.cov_models])
-        assert all([not model.use_spline for model in self.cov_models]), \
-            "Do not support using spline in definitions/methods model."
 
         assert self.gold_dorm in self.cwdata.unique_dorms
 
-        assert self.order_prior is None or \
-               isinstance(self.order_prior, list)
+        assert self.order_prior is None or isinstance(self.order_prior, list)
 
     def create_relation_mat(self, cwdata=None):
         """Creating relation matrix.
@@ -258,6 +255,10 @@ class CWModel:
         Args:
             cwdata (data.CWData | None, optional):
                 Optional data set, if None, use `self.cwdata`.
+            relation_mat (numpy.ndarray | None, optional):
+                Optional relation matrix, if None, use `self.relation_mat`
+            dorm_cov_mat (numpy.ndarray | None, optional):
+                Optional covariates matrix, if None, use `self.dorm_cov_mat`
 
         Returns:
             numpy.ndarray:
@@ -310,7 +311,6 @@ class CWModel:
             return None
         else:
             return mat
-
 
     def fit(self, max_iter=100, inlier_pct=1.0):
         """Optimize the model parameters.
