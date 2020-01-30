@@ -27,7 +27,6 @@ def cwdata():
     for i in range(num_covs):
         df['cov%i' % i] = np.random.randn(num_obs)
 
-
     return crosswalk.data.CWData(df,
                                  'obs',
                                  'obs_se',
