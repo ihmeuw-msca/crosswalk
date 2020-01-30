@@ -118,7 +118,6 @@ class CWModel:
     def __init__(self, cwdata,
                  obs_type='diff_log',
                  dorm_models=None,
-                 diff_models=None,
                  gold_dorm=None,
                  dorm_order_prior=None):
         """Constructor of CWModel.
@@ -130,8 +129,6 @@ class CWModel:
                 `'diff_logit'`.
             dorm_models (list{crosswalk.CovModel}):
                 A list of covariate models for the definitions/methods
-            diff_models (list{crosswalk.CovModel}):
-                A list of covaraite models for the differences
             gold_dorm (str | None, optional):
                 Gold standard definition/method.
             dorm_order_prior (list{list{str}} | None, optional):
@@ -141,7 +138,6 @@ class CWModel:
         self.obs_type = obs_type
         self.dorm_models = utils.default_input(dorm_models,
                                                [CovModel('intercept')])
-        self.diff_models = utils.default_input(diff_models, [])
         self.gold_dorm = utils.default_input(gold_dorm, cwdata.max_ref_dorm)
         self.dorm_order_prior = dorm_order_prior
 
@@ -166,24 +162,15 @@ class CWModel:
         self.obs_inv_fun = obs_inv_fun
 
         # variable names
-        self.dorm_vars = ['_'.join(['dorm', dorm, model.soln_name])
-                          for dorm in self.cwdata.unique_dorms
-                          for model in self.dorm_models]
-        self.diff_vars = ['_'.join(['diff', model.soln_name])
-                          for model in self.diff_models]
-        self.vars = [dorm for dorm in self.cwdata.unique_dorms] + ['diff']
+        self.vars = [dorm for dorm in self.cwdata.unique_dorms]
 
         # dimensions
         self.num_vars_per_dorm = sum([model.num_vars
                                       for model in self.dorm_models])
-        self.num_dorm_vars = self.num_vars_per_dorm*self.cwdata.num_dorms
-        self.num_diff_vars = sum([model.num_vars
-                                  for model in self.diff_models])
-        self.num_vars = self.num_dorm_vars + self.num_diff_vars
+        self.num_vars = self.num_vars_per_dorm*self.cwdata.num_dorms
 
         # indices for easy access the variables
-        var_sizes = np.array([self.num_vars_per_dorm]*self.cwdata.num_dorms +
-                             [self.num_diff_vars])
+        var_sizes = np.array([self.num_vars_per_dorm]*self.cwdata.num_dorms)
         var_idx = utils.sizes_to_indices(var_sizes)
         self.var_idx = {
             var: var_idx[i]
@@ -193,7 +180,6 @@ class CWModel:
         # create design matrix
         self.relation_mat = self.create_relation_mat()
         self.dorm_cov_mat = self.create_dorm_cov_mat()
-        self.diff_cov_mat = self.create_diff_cov_mat()
         self.design_mat = self.create_design_mat()
         self.constraint_mat = self.create_constraint_mat()
 
@@ -210,9 +196,7 @@ class CWModel:
         assert self.obs_type in ['diff_log', 'diff_logit'], "Unsupport " \
                                                             "observation type"
         assert isinstance(self.dorm_models, list)
-        assert isinstance(self.diff_models, list)
         assert all([isinstance(model, CovModel) for model in self.dorm_models])
-        assert all([isinstance(model, CovModel) for model in self.diff_models])
         assert all([not model.use_spline for model in self.dorm_models]), \
             "Do not support using spline in definitions/methods model."
 
@@ -265,32 +249,10 @@ class CWModel:
         return np.hstack([model.create_design_mat(cwdata)
                           for model in self.dorm_models])
 
-    def create_diff_cov_mat(self, cwdata=None):
-        """Create covariates matrix for difference.
-
-        Args:
-            cwdata (data.CWData | None, optional):
-                Optional data set, if None, use `self.cwdata`.
-
-        Returns:
-            numpy.ndarray:
-                Returns covarites matrix.
-        """
-        cwdata = utils.default_input(cwdata,
-                                     default=self.cwdata)
-        assert isinstance(cwdata, data.CWData)
-
-        if self.diff_models:
-            return np.hstack([model.create_design_mat(cwdata)
-                              for model in self.diff_models])
-        else:
-            return np.array([]).reshape(cwdata.num_obs, 0)
-
     def create_design_mat(self,
                           cwdata=None,
                           relation_mat=None,
-                          dorm_cov_mat=None,
-                          diff_cov_mat=None):
+                          dorm_cov_mat=None):
         """Create linear design matrix.
 
         Args:
@@ -307,14 +269,11 @@ class CWModel:
                                            default=self.relation_mat)
         dorm_cov_mat = utils.default_input(dorm_cov_mat,
                                            default=self.dorm_cov_mat)
-        diff_cov_mat = utils.default_input(diff_cov_mat,
-                                           default=self.diff_cov_mat)
 
         mat = (
             relation_mat.ravel()[:, None] *
             np.repeat(dorm_cov_mat, cwdata.num_dorms, axis=0)
-        ).reshape(cwdata.num_obs, self.num_dorm_vars)
-        mat = np.hstack((mat, diff_cov_mat))
+        ).reshape(cwdata.num_obs, self.num_vars)
 
         return mat
 
@@ -346,17 +305,6 @@ class CWModel:
                 dorm_constraint_mat.append(sub_mat)
             dorm_constraint_mat = np.vstack(dorm_constraint_mat)
             mat = np.vstack((mat, dorm_constraint_mat))
-
-        if any([model.use_constraints for model in self.diff_models]):
-            diff_constraint_mat = splinalg.block_diag(*[
-                model.create_constraint_mat()
-                for model in self.diff_models
-            ])
-            diff_constraint_mat = np.hstack((
-                np.zeros((diff_constraint_mat.shape[0], self.num_dorm_vars)),
-                diff_constraint_mat
-            ))
-            mat = np.vstack((mat, diff_constraint_mat))
 
         if mat.size == 0:
             return None
@@ -456,11 +404,9 @@ class CWModel:
         # create new design matrix
         new_relation_mat = self.create_relation_mat(cwdata=new_cwdata)
         new_dorm_cov_mat = self.create_dorm_cov_mat(cwdata=new_cwdata)
-        new_diff_cov_mat = self.create_diff_cov_mat(cwdata=new_cwdata)
         new_design_mat = self.create_design_mat(cwdata=new_cwdata,
                                                 relation_mat=new_relation_mat,
-                                                dorm_cov_mat=new_dorm_cov_mat,
-                                                diff_cov_mat=new_diff_cov_mat)
+                                                dorm_cov_mat=new_dorm_cov_mat)
 
         # compute the corresponding gold_dorm value
         ref_vals = self.obs_inv_fun(self.obs_fun(df[alt_vals].values) -

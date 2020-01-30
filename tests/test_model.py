@@ -43,36 +43,27 @@ def dorm_models():
             model.CovModel('cov0')]
 
 
-@pytest.fixture
-def diff_models():
-    return [model.CovModel('cov1'),
-            model.CovModel('cov2')]
-
-
 @pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
-def test_input(cwdata, obs_type, dorm_models, diff_models):
+def test_input(cwdata, obs_type, dorm_models):
     cwmodel = model.CWModel(cwdata, obs_type,
-                            dorm_models=dorm_models,
-                            diff_models=diff_models)
+                            dorm_models=dorm_models)
     cwmodel.check()
 
 
-def test_design_mat(cwdata, dorm_models, diff_models):
+def test_design_mat(cwdata, dorm_models):
     obs_type = 'diff_log'
     cwmodel = model.CWModel(cwdata, obs_type,
-                            dorm_models=dorm_models,
-                            diff_models=diff_models)
+                            dorm_models=dorm_models)
     design_mat = cwmodel.design_mat
     assert (cwmodel.relation_mat.sum(axis=1) == 0.0).all()
-    assert (design_mat.sum(axis=1) == cwmodel.diff_cov_mat.sum(axis=1)).all()
+    assert (design_mat.sum(axis=1) == 0.0).all()
 
 
 @pytest.mark.parametrize('dorm_order_prior', [[['1', '2'], ['2', '3']]])
-def test_dorm_order_prior(cwdata, dorm_models, diff_models, dorm_order_prior):
+def test_dorm_order_prior(cwdata, dorm_models, dorm_order_prior):
     obs_type = 'diff_log'
     cwmodel = model.CWModel(cwdata, obs_type,
                             dorm_models=dorm_models,
-                            diff_models=diff_models,
                             dorm_order_prior=dorm_order_prior)
 
     constraints_mat = cwmodel.constraint_mat
@@ -83,12 +74,11 @@ def test_dorm_order_prior(cwdata, dorm_models, diff_models, dorm_order_prior):
 
 @pytest.mark.parametrize('alt_dorm', ['2', '3'])
 @pytest.mark.parametrize('ref_dorm', ['3'])
-def test_adjust_alt_vals(cwdata, dorm_models, diff_models, alt_dorm, ref_dorm):
+def test_adjust_alt_vals(cwdata, dorm_models, alt_dorm, ref_dorm):
     obs_type = 'diff_log'
     gold_dorm = ref_dorm
     cwmodel = model.CWModel(cwdata, obs_type,
                             dorm_models=dorm_models,
-                            diff_models=diff_models,
                             gold_dorm=gold_dorm)
     cwmodel.fit()
     new_df = pd.DataFrame({
@@ -101,11 +91,10 @@ def test_adjust_alt_vals(cwdata, dorm_models, diff_models, alt_dorm, ref_dorm):
     ref_vals = cwmodel.adjust_alt_vals(new_df,
                                        alt_dorms='dorms',
                                        alt_vals='vals')
-    assert np.allclose(ref_vals, np.exp(
-        np.sum(cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
-               cwmodel.beta[cwmodel.var_idx[alt_dorm]]) -
-        np.sum(cwmodel.beta[cwmodel.var_idx['diff']])
-    ))
+    assert np.allclose(ref_vals, np.exp(np.sum(
+        cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
+        cwmodel.beta[cwmodel.var_idx[alt_dorm]]
+    )))
 
 
 @pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
@@ -138,7 +127,7 @@ def test_cov_model(cwdata, cov_name, spline, soln_name):
                                                  'decreasing',
                                                  None])
 @pytest.mark.parametrize('spline_convexity', ['convex', 'concave', None])
-def test_spline_prior(cwdata, cov_name, spline, soln_name,
+def test_spline_prior(cov_name, spline, soln_name,
                       spline_monotonicity, spline_convexity):
     cov_model = model.CovModel(cov_name,
                                spline=spline,
