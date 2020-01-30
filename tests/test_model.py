@@ -38,33 +38,33 @@ def cwdata():
 
 
 @pytest.fixture
-def dorm_models():
+def cov_models():
     return [model.CovModel('intercept'),
             model.CovModel('cov0')]
 
 
 @pytest.mark.parametrize('obs_type', ['diff_log', 'diff_logit'])
-def test_input(cwdata, obs_type, dorm_models):
+def test_input(cwdata, obs_type, cov_models):
     cwmodel = model.CWModel(cwdata, obs_type,
-                            dorm_models=dorm_models)
+                            cov_models=cov_models)
     cwmodel.check()
 
 
-def test_design_mat(cwdata, dorm_models):
+def test_design_mat(cwdata, cov_models):
     obs_type = 'diff_log'
     cwmodel = model.CWModel(cwdata, obs_type,
-                            dorm_models=dorm_models)
+                            cov_models=cov_models)
     design_mat = cwmodel.design_mat
     assert (cwmodel.relation_mat.sum(axis=1) == 0.0).all()
     assert (design_mat.sum(axis=1) == 0.0).all()
 
 
-@pytest.mark.parametrize('dorm_order_prior', [[['1', '2'], ['2', '3']]])
-def test_dorm_order_prior(cwdata, dorm_models, dorm_order_prior):
+@pytest.mark.parametrize('order_prior', [[['1', '2'], ['2', '3']]])
+def test_order_prior(cwdata, cov_models, order_prior):
     obs_type = 'diff_log'
     cwmodel = model.CWModel(cwdata, obs_type,
-                            dorm_models=dorm_models,
-                            dorm_order_prior=dorm_order_prior)
+                            cov_models=cov_models,
+                            order_prior=order_prior)
 
     constraints_mat = cwmodel.constraint_mat
     assert isinstance(constraints_mat, np.ndarray)
@@ -74,11 +74,11 @@ def test_dorm_order_prior(cwdata, dorm_models, dorm_order_prior):
 
 @pytest.mark.parametrize('alt_dorm', ['2', '3'])
 @pytest.mark.parametrize('ref_dorm', ['3'])
-def test_adjust_alt_vals(cwdata, dorm_models, alt_dorm, ref_dorm):
+def test_adjust_alt_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     obs_type = 'diff_log'
     gold_dorm = ref_dorm
     cwmodel = model.CWModel(cwdata, obs_type,
-                            dorm_models=dorm_models,
+                            cov_models=cov_models,
                             gold_dorm=gold_dorm)
     cwmodel.fit()
     new_df = pd.DataFrame({

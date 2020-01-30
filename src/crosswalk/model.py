@@ -117,9 +117,9 @@ class CWModel:
     """
     def __init__(self, cwdata,
                  obs_type='diff_log',
-                 dorm_models=None,
+                 cov_models=None,
                  gold_dorm=None,
-                 dorm_order_prior=None):
+                 order_prior=None):
         """Constructor of CWModel.
         Args:
             cwdata (data.CWData):
@@ -127,19 +127,19 @@ class CWModel:
             obs_type (str, optional):
                 Type of observation can only be chosen from `'diff_log'` and
                 `'diff_logit'`.
-            dorm_models (list{crosswalk.CovModel}):
+            cov_models (list{crosswalk.CovModel}):
                 A list of covariate models for the definitions/methods
             gold_dorm (str | None, optional):
                 Gold standard definition/method.
-            dorm_order_prior (list{list{str}} | None, optional):
+            order_prior (list{list{str}} | None, optional):
                 Order priors between different definitions.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
-        self.dorm_models = utils.default_input(dorm_models,
+        self.cov_models = utils.default_input(cov_models,
                                                [CovModel('intercept')])
         self.gold_dorm = utils.default_input(gold_dorm, cwdata.max_ref_dorm)
-        self.dorm_order_prior = dorm_order_prior
+        self.order_prior = order_prior
 
         # check input
         self.check()
@@ -166,7 +166,7 @@ class CWModel:
 
         # dimensions
         self.num_vars_per_dorm = sum([model.num_vars
-                                      for model in self.dorm_models])
+                                      for model in self.cov_models])
         self.num_vars = self.num_vars_per_dorm*self.cwdata.num_dorms
 
         # indices for easy access the variables
@@ -195,15 +195,15 @@ class CWModel:
         assert isinstance(self.cwdata, data.CWData)
         assert self.obs_type in ['diff_log', 'diff_logit'], "Unsupport " \
                                                             "observation type"
-        assert isinstance(self.dorm_models, list)
-        assert all([isinstance(model, CovModel) for model in self.dorm_models])
-        assert all([not model.use_spline for model in self.dorm_models]), \
+        assert isinstance(self.cov_models, list)
+        assert all([isinstance(model, CovModel) for model in self.cov_models])
+        assert all([not model.use_spline for model in self.cov_models]), \
             "Do not support using spline in definitions/methods model."
 
         assert self.gold_dorm in self.cwdata.unique_dorms
 
-        assert self.dorm_order_prior is None or \
-               isinstance(self.dorm_order_prior, list)
+        assert self.order_prior is None or \
+               isinstance(self.order_prior, list)
 
     def create_relation_mat(self, cwdata=None):
         """Creating relation matrix.
@@ -247,7 +247,7 @@ class CWModel:
         assert isinstance(cwdata, data.CWData)
 
         return np.hstack([model.create_design_mat(cwdata)
-                          for model in self.dorm_models])
+                          for model in self.cov_models])
 
     def create_design_mat(self,
                           cwdata=None,
@@ -285,7 +285,7 @@ class CWModel:
                 Return constraints matrix.
         """
         mat = np.array([]).reshape(0, self.num_vars)
-        if self.dorm_order_prior is not None:
+        if self.order_prior is not None:
             dorm_constraint_mat = []
             dorm_cov_mat = self.dorm_cov_mat
             min_dorm_cov_mat = np.min(dorm_cov_mat, axis=0)
@@ -298,7 +298,7 @@ class CWModel:
                     min_dorm_cov_mat,
                     max_dorm_cov_mat
                 ))
-            for p in self.dorm_order_prior:
+            for p in self.order_prior:
                 sub_mat = np.zeros((design_mat.shape[0], self.num_vars))
                 sub_mat[:, self.var_idx[p[0]]] = design_mat
                 sub_mat[:, self.var_idx[p[1]]] = -design_mat
