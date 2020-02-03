@@ -59,3 +59,23 @@ def test_default_input(input, default):
         assert (my_input == 0.0).all()
     else:
         assert (my_input == 1.0).all()
+
+
+@pytest.mark.parametrize("log_mean", [np.random.randn(5)])
+@pytest.mark.parametrize("log_sd", [np.random.rand(5)])
+def test_log_linear(log_mean, log_sd):
+    linear_mean, linear_sd = utils.log_to_linear(log_mean, log_sd)
+    my_log_mean, my_log_sd = utils.linear_to_log(linear_mean, linear_sd)
+
+    assert np.allclose(log_mean, my_log_mean)
+    assert np.allclose(log_sd, my_log_sd)
+
+
+@pytest.mark.parametrize("logit_mean", [np.random.randn(5)])
+@pytest.mark.parametrize("logit_sd", [np.random.rand(5)])
+def test_logit_linear(logit_mean, logit_sd):
+    linear_mean, linear_sd = utils.logit_to_linear(logit_mean, logit_sd)
+    my_logit_mean, my_logit_sd = utils.linear_to_logit(linear_mean, linear_sd)
+
+    assert np.allclose(logit_mean, my_logit_mean)
+    assert np.allclose(logit_sd, my_logit_sd)

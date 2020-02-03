@@ -6,7 +6,7 @@
     `model` module of the `crosswalk` package.
 """
 import numpy as np
-import scipy.linalg as splinalg
+import limetr
 from limetr import LimeTr
 from xspline import XSpline
 from . import data
@@ -185,6 +185,7 @@ class CWModel:
 
         # place holder for the solutions
         self.beta = None
+        self.beta_sd = None
         self.gamma = None
         self.fixed_vars = None
         self.random_vars = None
@@ -224,7 +225,7 @@ class CWModel:
                       for dorm in cwdata.alt_dorms]] = 1.0
         relation_mat[range(cwdata.num_obs),
                      [cwdata.dorm_idx[dorm]
-                      for dorm in cwdata.ref_dorms]] = -1.0
+                      for dorm in cwdata.ref_dorms]] += -1.0
 
         return relation_mat
 
@@ -374,7 +375,36 @@ class CWModel:
         }
         self.random_vars = self.gamma
 
-    def adjust_alt_vals(self, df, alt_dorms, alt_vals):
+        # compute the posterior distribution of beta
+        x = lt.JF(lt.beta)*np.sqrt(lt.w)[:, None]
+        z = lt.Z*np.sqrt(lt.w)[:, None]
+        v = limetr.utils.VarMat(lt.V**lt.w, z, lt.gamma, lt.n)
+
+        if hasattr(lt, 'gprior'):
+            beta_gprior_sd = lt.gprior[:, lt.idx_beta][1]
+        else:
+            beta_gprior_sd = np.repeat(np.inf, lt.k_beta)
+
+        unconstrained_id = np.hstack([
+            np.arange(lt.k_beta)[self.var_idx[dorm]]
+            for dorm in self.cwdata.unique_dorms
+            if dorm != self.gold_dorm
+        ])
+
+        hessian = x.T.dot(v.invDot(x)) + np.diag(1.0/beta_gprior_sd**2)
+        hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=0)
+        hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=1)
+
+        self.beta_sd = np.zeros(lt.k_beta)
+        self.beta_sd[unconstrained_id] = np.sqrt(np.diag(
+            np.linalg.inv(hessian)
+        ))
+
+    def adjust_alt_vals(self, df,
+                        alt_dorms,
+                        alt_vals_mean,
+                        alt_vals_se,
+                        study_id=None):
         """Adjust alternative values.
 
         Args:
@@ -383,8 +413,13 @@ class CWModel:
             alt_dorms (str):
                 Name of the column in `df` that contains the alternative
                 definitions or methods.
-            alt_vals (str):
+            alt_vals_mean (str):
                 Name of the column in `df` that contains the alternative values.
+            alt_vals_se (str):
+                Name of the column in `df` that contains the standard error of
+                alternative values.
+            study_id (str | None, optional):
+                If not `None`, predict with the random effects.
 
         Returns:
             numpy.ndarray:
@@ -408,8 +443,47 @@ class CWModel:
                                                 relation_mat=new_relation_mat,
                                                 cov_mat=new_cov_mat)
 
-        # compute the corresponding gold_dorm value
-        ref_vals = self.obs_inv_fun(self.obs_fun(df[alt_vals].values) -
-                                    new_design_mat.dot(self.beta))
+        # calculate the random effects
+        if study_id is not None:
+            random_effects = np.array([
+                self.random_vars[sid]
+                if sid in self.random_vars else 0.0
+                for sid in df[study_id]
+            ])
+        else:
+            random_effects = np.zeros(df.shape[0])
+        random_effects[df[alt_dorms].values == self.gold_dorm] = 0.0
 
-        return ref_vals
+        # compute the corresponding gold_dorm value
+        if self.obs_type == 'diff_log':
+            transformed_alt_vals_mean,\
+            transformed_alt_vals_se = utils.linear_to_log(
+                df[alt_vals_mean],
+                df[alt_vals_se]
+            )
+        else:
+            transformed_alt_vals_mean, \
+            transformed_alt_vals_se = utils.linear_to_logit(
+                df[alt_vals_mean],
+                df[alt_vals_se]
+            )
+
+        transformed_ref_vals_mean = transformed_alt_vals_mean - \
+            new_design_mat.dot(self.beta) - random_effects
+        transformed_ref_vals_sd = transformed_alt_vals_se.copy()
+        transformed_ref_vals_sd += np.array([
+            (new_design_mat[i]**2).dot(self.beta_sd**2) + np.sqrt(self.gamma[0])
+            if dorm != self.gold_dorm else 0.0
+            for i, dorm in enumerate(df[alt_dorms])
+        ])
+
+        if self.obs_type == 'diff_log':
+            ref_vals_mean,\
+            ref_vals_sd = utils.log_to_linear(transformed_ref_vals_mean,
+                                              transformed_ref_vals_sd)
+        else:
+            ref_vals_mean,\
+            ref_vals_sd = utils.logit_to_linear(transformed_ref_vals_mean,
+                                                transformed_ref_vals_sd)
+
+        return ref_vals_mean, ref_vals_sd

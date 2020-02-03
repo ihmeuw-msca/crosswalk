@@ -23,7 +23,10 @@ def cwdata():
         'alt_dorms': np.random.choice(4, num_obs),
         'study_id': np.array([1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
     })
-    df['ref_dorms'] = 3 - df['alt_dorms'].values
+    df['ref_dorms'] = np.array([
+        3 if alt_dorm != 3 else 0
+        for alt_dorm in df['alt_dorms']
+    ])
     for i in range(num_covs):
         df['cov%i' % i] = np.random.randn(num_obs)
 
@@ -82,15 +85,19 @@ def test_adjust_alt_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     cwmodel.fit()
     new_df = pd.DataFrame({
         'dorms': np.array([alt_dorm]*cwdata.num_obs),
-        'vals': np.ones(cwdata.num_obs)
+        'vals': np.ones(cwdata.num_obs),
+        'se': np.zeros(cwdata.num_obs)
     })
     for cov in cwdata.covs.columns:
         new_df[cov] = np.ones(cwdata.num_obs)
 
-    ref_vals = cwmodel.adjust_alt_vals(new_df,
-                                       alt_dorms='dorms',
-                                       alt_vals='vals')
-    assert np.allclose(ref_vals, np.exp(np.sum(
+    ref_vals_mean, ref_vals_sd = cwmodel.adjust_alt_vals(
+        new_df,
+        alt_dorms='dorms',
+        alt_vals_mean='vals',
+        alt_vals_se='se'
+    )
+    assert np.allclose(ref_vals_mean, np.exp(np.sum(
         cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
         cwmodel.beta[cwmodel.var_idx[alt_dorm]]
     )))

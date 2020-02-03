@@ -90,3 +90,93 @@ def default_input(input, default=None):
         return default
     else:
         return input
+
+
+def log_to_linear(mean, sd):
+    """Transform mean and standard deviation from log space to linear space.
+    Using Delta method.
+
+    Args:
+        mean (numpy.ndarray):
+            Mean in log space.
+        sd (numpy.ndarray):
+            Standard deviation in log space.
+
+    Returns:
+        tuple{numpy.ndarray, numpy.ndarray}:
+            Mean and standard deviation in linear space.
+    """
+    assert mean.size == sd.size
+    assert (sd >= 0.0).all()
+    linear_mean = np.exp(mean)
+    linear_sd = np.exp(mean)*sd
+
+    return linear_mean, linear_sd
+
+
+def linear_to_log(mean, sd):
+    """Transform mean and standard deviation from linear space to log space.
+    Using delta method.
+
+    Args:
+        mean (numpy.ndarray):
+            Mean in linear space.
+        sd (numpy.ndarray):
+            Standard deviation in linear space.
+
+    Returns:
+        tuple{numpy.ndarray, numpy.ndarray}:
+            Mean and standard deviation in log space.
+    """
+    assert mean.size == sd.size
+    assert (mean > 0.0).all()
+    assert (sd >= 0.0).all()
+    log_mean = np.log(mean)
+    log_sd = sd/mean
+
+    return log_mean, log_sd
+
+
+def logit_to_linear(mean, sd):
+    """Transform mean and standard deviation from logit space to linear space.
+    Using Delta method.
+
+    Args:
+        mean (numpy.ndarray):
+            Mean in logit space.
+        sd (numpy.ndarray):
+            Standard deviation in logit space.
+
+    Returns:
+        tuple{numpy.ndarray, numpy.ndarray}:
+            Mean and standard deviation in linear space.
+    """
+    assert mean.size == sd.size
+    assert (sd >= 0.0).all()
+    linear_mean = 1.0/(1.0 + np.exp(-mean))
+    linear_sd = (np.exp(mean)/(1.0 + np.exp(mean))**2)*sd
+
+    return linear_mean, linear_sd
+
+
+def linear_to_logit(mean, sd):
+    """Transform mean and standard deviation from linear space to logit space.
+    Using delta method.
+
+    Args:
+        mean (numpy.ndarray):
+            Mean in linear space.
+        sd (numpy.ndarray):
+            Standard deviation in linear space.
+
+    Returns:
+        tuple{numpy.ndarray, numpy.ndarray}:
+            Mean and standard deviation in logit space.
+    """
+    assert mean.size == sd.size
+    assert ((mean > 0.0) & (mean < 1.0)).all()
+    assert (sd >= 0.0).all()
+    logit_mean = np.log(mean/(1.0 - mean))
+    logit_sd = sd/(mean*(1.0 - mean))
+
+    return logit_mean, logit_sd
