@@ -373,7 +373,11 @@ class CWModel:
             var: self.beta[self.var_idx[var]]
             for var in self.vars
         }
-        self.random_vars = self.gamma
+        u = lt.estimateRE()
+        self.random_vars = {
+            sid: u[i]
+            for i, sid in enumerate(self.cwdata.unique_study_id)
+        }
 
         # compute the posterior distribution of beta
         x = lt.JF(lt.beta)*np.sqrt(lt.w)[:, None]
@@ -428,10 +432,13 @@ class CWModel:
         df_copy = df.copy()
         ref_dorms = 'ref_dorms'
         df_copy[ref_dorms] = np.array([self.gold_dorm]*df_copy.shape[0])
+        if 'intercept' not in df_copy.columns:
+            df_copy['intercept'] = np.ones(df_copy.shape[0])
         new_cwdata = data.CWData(df_copy,
                                  alt_dorms=alt_dorms,
                                  ref_dorms=ref_dorms,
-                                 covs=list(self.cwdata.covs.columns))
+                                 covs=list(self.cwdata.covs.columns),
+                                 add_intercept=False)
 
         # transfer data dorm structure to the new_cwdata
         new_cwdata.copy_dorm_structure(self.cwdata)
@@ -458,14 +465,14 @@ class CWModel:
         if self.obs_type == 'diff_log':
             transformed_alt_vals_mean,\
             transformed_alt_vals_se = utils.linear_to_log(
-                df[alt_vals_mean],
-                df[alt_vals_se]
+                df[alt_vals_mean].values,
+                df[alt_vals_se].values
             )
         else:
             transformed_alt_vals_mean, \
             transformed_alt_vals_se = utils.linear_to_logit(
-                df[alt_vals_mean],
-                df[alt_vals_se]
+                df[alt_vals_mean].values,
+                df[alt_vals_se].values
             )
 
         transformed_ref_vals_mean = transformed_alt_vals_mean - \
