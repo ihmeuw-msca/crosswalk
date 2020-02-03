@@ -57,8 +57,8 @@ def test_design_mat(cwdata, cov_models):
     cwmodel = model.CWModel(cwdata, obs_type,
                             cov_models=cov_models)
     design_mat = cwmodel.design_mat
-    assert (cwmodel.relation_mat.sum(axis=1) == 0.0).all()
-    assert (design_mat.sum(axis=1) == 0.0).all()
+    assert np.allclose(cwmodel.relation_mat.sum(axis=1), 0.0)
+    assert np.allclose(design_mat.sum(axis=1), 0.0)
 
 
 @pytest.mark.parametrize('order_prior', [[['1', '2'], ['2', '3']]])
