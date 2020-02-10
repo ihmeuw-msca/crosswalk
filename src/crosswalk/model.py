@@ -404,22 +404,22 @@ class CWModel:
             np.linalg.inv(hessian)
         ))
 
-    def adjust_alt_vals(self, df,
-                        alt_dorms,
-                        alt_vals_mean,
-                        alt_vals_se,
-                        study_id=None):
+    def adjust_orig_vals(self, df,
+                         orig_dorms,
+                         orig_vals_mean,
+                         orig_vals_se,
+                         study_id=None):
         """Adjust alternative values.
 
         Args:
             df (pd.DataFrame):
                 Data frame of the alternative values that need to be adjusted.
-            alt_dorms (str):
+            orig_dorms (str):
                 Name of the column in `df` that contains the alternative
                 definitions or methods.
-            alt_vals_mean (str):
+            orig_vals_mean (str):
                 Name of the column in `df` that contains the alternative values.
-            alt_vals_se (str):
+            orig_vals_se (str):
                 Name of the column in `df` that contains the standard error of
                 alternative values.
             study_id (str | None, optional):
@@ -435,7 +435,7 @@ class CWModel:
         if 'intercept' not in df_copy.columns:
             df_copy['intercept'] = np.ones(df_copy.shape[0])
         new_cwdata = data.CWData(df_copy,
-                                 alt_dorms=alt_dorms,
+                                 alt_dorms=orig_dorms,
                                  ref_dorms=ref_dorms,
                                  covs=list(self.cwdata.covs.columns),
                                  add_intercept=False)
@@ -459,29 +459,29 @@ class CWModel:
             ])
         else:
             random_effects = np.zeros(df.shape[0])
-        random_effects[df[alt_dorms].values == self.gold_dorm] = 0.0
+        random_effects[df[orig_dorms].values == self.gold_dorm] = 0.0
 
         # compute the corresponding gold_dorm value
         if self.obs_type == 'diff_log':
-            transformed_alt_vals_mean,\
-            transformed_alt_vals_se = utils.linear_to_log(
-                df[alt_vals_mean].values,
-                df[alt_vals_se].values
+            transformed_orig_vals_mean,\
+            transformed_orig_vals_se = utils.linear_to_log(
+                df[orig_vals_mean].values,
+                df[orig_vals_se].values
             )
         else:
-            transformed_alt_vals_mean, \
-            transformed_alt_vals_se = utils.linear_to_logit(
-                df[alt_vals_mean].values,
-                df[alt_vals_se].values
+            transformed_orig_vals_mean, \
+            transformed_orig_vals_se = utils.linear_to_logit(
+                df[orig_vals_mean].values,
+                df[orig_vals_se].values
             )
 
-        transformed_ref_vals_mean = transformed_alt_vals_mean - \
+        transformed_ref_vals_mean = transformed_orig_vals_mean - \
             new_design_mat.dot(self.beta) - random_effects
-        transformed_ref_vals_sd = transformed_alt_vals_se.copy()
+        transformed_ref_vals_sd = transformed_orig_vals_se.copy()
         transformed_ref_vals_sd += np.array([
             (new_design_mat[i]**2).dot(self.beta_sd**2) + np.sqrt(self.gamma[0])
             if dorm != self.gold_dorm else 0.0
-            for i, dorm in enumerate(df[alt_dorms])
+            for i, dorm in enumerate(df[orig_dorms])
         ])
 
         if self.obs_type == 'diff_log':

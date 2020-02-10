@@ -76,7 +76,7 @@ def test_order_prior(cwdata, cov_models, order_prior):
 
 @pytest.mark.parametrize('alt_dorm', ['2', '3'])
 @pytest.mark.parametrize('ref_dorm', ['3'])
-def test_adjust_alt_vals(cwdata, cov_models, alt_dorm, ref_dorm):
+def test_adjust_orig_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     obs_type = 'diff_log'
     gold_dorm = ref_dorm
     cwmodel = model.CWModel(cwdata, obs_type,
@@ -91,11 +91,11 @@ def test_adjust_alt_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     for cov in cwdata.covs.columns:
         new_df[cov] = np.ones(cwdata.num_obs)
 
-    ref_vals_mean, ref_vals_sd = cwmodel.adjust_alt_vals(
+    ref_vals_mean, ref_vals_sd = cwmodel.adjust_orig_vals(
         new_df,
-        alt_dorms='dorms',
-        alt_vals_mean='vals',
-        alt_vals_se='se'
+        orig_dorms='dorms',
+        orig_vals_mean='vals',
+        orig_vals_se='se'
     )
     assert np.allclose(ref_vals_mean, np.exp(np.sum(
         cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
