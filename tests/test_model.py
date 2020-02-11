@@ -91,13 +91,13 @@ def test_adjust_orig_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     for cov in cwdata.covs.columns:
         new_df[cov] = np.ones(cwdata.num_obs)
 
-    ref_vals_mean, ref_vals_sd = cwmodel.adjust_orig_vals(
+    pred_df = cwmodel.adjust_orig_vals(
         new_df,
         orig_dorms='dorms',
         orig_vals_mean='vals',
         orig_vals_se='se'
     )
-    assert np.allclose(ref_vals_mean, np.exp(np.sum(
+    assert np.allclose(pred_df['ref_vals_mean'], np.exp(np.sum(
         cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
         cwmodel.beta[cwmodel.var_idx[alt_dorm]]
     )))

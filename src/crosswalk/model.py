@@ -6,6 +6,7 @@
     `model` module of the `crosswalk` package.
 """
 import numpy as np
+import pandas as pd
 import limetr
 from limetr import LimeTr
 from xspline import XSpline
@@ -426,8 +427,8 @@ class CWModel:
                 If not `None`, predict with the random effects.
 
         Returns:
-            numpy.ndarray:
-                The adjusted alternative values.
+            pandas.DataFrame:
+                The adjusted values and standard deviations.
         """
         df_copy = df.copy()
         ref_dorms = 'ref_dorms'
@@ -475,14 +476,17 @@ class CWModel:
                 df[orig_vals_se].values
             )
 
-        transformed_ref_vals_mean = transformed_orig_vals_mean - \
-            new_design_mat.dot(self.beta) - random_effects
-        transformed_ref_vals_sd = transformed_orig_vals_se.copy()
-        transformed_ref_vals_sd += np.array([
-            (new_design_mat[i]**2).dot(self.beta_sd**2) + np.sqrt(self.gamma[0])
+        pred_diff_mean = new_design_mat.dot(self.beta)
+        pred_diff_sd = np.sqrt(np.array([
+            (new_design_mat[i]**2).dot(self.beta_sd**2)
             if dorm != self.gold_dorm else 0.0
             for i, dorm in enumerate(df[orig_dorms])
-        ])
+        ]))
+
+        transformed_ref_vals_mean = transformed_orig_vals_mean - \
+            pred_diff_mean - random_effects
+        transformed_ref_vals_sd = np.sqrt(transformed_orig_vals_se**2 +
+                                          pred_diff_sd**2 + self.gamma[0]**2)
 
         if self.obs_type == 'diff_log':
             ref_vals_mean,\
@@ -493,4 +497,11 @@ class CWModel:
             ref_vals_sd = utils.logit_to_linear(transformed_ref_vals_mean,
                                                 transformed_ref_vals_sd)
 
-        return ref_vals_mean, ref_vals_sd
+        pred_df = pd.DataFrame({
+            'ref_vals_mean': ref_vals_mean,
+            'ref_vals_sd': ref_vals_sd,
+            'pred_diff_mean': pred_diff_mean,
+            'pred_diff_sd': pred_diff_sd
+        })
+
+        return pred_df
