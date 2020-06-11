@@ -360,38 +360,38 @@ class CWModel:
         def jfun(beta):
             return x
 
-        lt = LimeTr(n, k_beta, k_gamma, y, fun, jfun, z,
+        self.lt = LimeTr(n, k_beta, k_gamma, y, fun, jfun, z,
                     S=s,
                     uprior=uprior,
                     C=cfun,
                     JC=jcfun,
                     c=cvec,
                     inlier_percentage=inlier_pct)
-        self.beta, self.gamma, _ = lt.fitModel(inner_print_level=5,
-                                               inner_max_iter=max_iter)
+        self.beta, self.gamma, self.w = self.lt.fitModel(inner_print_level=5,
+                                                         inner_max_iter=max_iter)
 
         self.fixed_vars = {
             var: self.beta[self.var_idx[var]]
             for var in self.vars
         }
-        u = lt.estimateRE()
+        u = self.lt.estimateRE()
         self.random_vars = {
             sid: u[i]
             for i, sid in enumerate(self.cwdata.unique_study_id)
         }
 
         # compute the posterior distribution of beta
-        x = lt.JF(lt.beta)*np.sqrt(lt.w)[:, None]
-        z = lt.Z*np.sqrt(lt.w)[:, None]
-        v = limetr.utils.VarMat(lt.V**lt.w, z, lt.gamma, lt.n)
+        x = self.lt.JF(self.lt.beta)*np.sqrt(self.lt.w)[:, None]
+        z = self.lt.Z*np.sqrt(self.lt.w)[:, None]
+        v = limetr.utils.VarMat(self.lt.V**self.lt.w, z, self.lt.gamma, self.lt.n)
 
-        if hasattr(lt, 'gprior'):
-            beta_gprior_sd = lt.gprior[:, lt.idx_beta][1]
+        if hasattr(self.lt, 'gprior'):
+            beta_gprior_sd = self.lt.gprior[:, self.lt.idx_beta][1]
         else:
-            beta_gprior_sd = np.repeat(np.inf, lt.k_beta)
+            beta_gprior_sd = np.repeat(np.inf, self.lt.k_beta)
 
         unconstrained_id = np.hstack([
-            np.arange(lt.k_beta)[self.var_idx[dorm]]
+            np.arange(self.lt.k_beta)[self.var_idx[dorm]]
             for dorm in self.cwdata.unique_dorms
             if dorm != self.gold_dorm
         ])
@@ -400,7 +400,7 @@ class CWModel:
         hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=0)
         hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=1)
 
-        self.beta_sd = np.zeros(lt.k_beta)
+        self.beta_sd = np.zeros(self.lt.k_beta)
         self.beta_sd[unconstrained_id] = np.sqrt(np.diag(
             np.linalg.inv(hessian)
         ))
