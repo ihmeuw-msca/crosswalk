@@ -4,6 +4,7 @@
     ~~~~~
     `utils` module for the `crosswalk` package, provides utility functions.
 """
+from typing import List, Iterable, Union
 import numpy as np
 
 
@@ -61,7 +62,7 @@ def array_structure(x):
     """Return the structure of the array.
 
     Args:
-        x (numpy.ndarray):
+        x (Iterable):
             The numpy array need to be studied.
 
     Returns:
@@ -69,7 +70,7 @@ def array_structure(x):
             Return the number of unique elements in the array, counts for each
             unique element and unique element.
     """
-    assert isinstance(x, np.ndarray)
+    x = flatten_list(list(x))
     unique_x, x_sizes = np.unique(x, return_counts=True)
     num_x = x_sizes.size
 
@@ -180,3 +181,53 @@ def linear_to_logit(mean, sd):
     logit_sd = sd/(mean*(1.0 - mean))
 
     return logit_mean, logit_sd
+
+
+def flatten_list(my_list: List) -> List:
+    """Flatten list so that it will be a list of non-list object.
+
+    Args:
+        my_list (List): List need to be flattened.
+
+    Returns:
+        List: Flattened list.
+    """
+    if not isinstance(my_list, list):
+        raise ValueError("Input must be a list.")
+
+    result = []
+    for element in my_list:
+        if isinstance(element, list):
+            result.extend(flatten_list(element))
+        else:
+            result.append(element)
+
+    return result
+
+
+def process_dorms(dorms: Union[str, None] = None,
+                  size: Union[int, None] = None,
+                  default_dorm: str = 'Unknown',
+                  dorm_separator: Union[str, None] = None) -> List[List[str]]:
+    """Process the dorms.
+
+    Args:
+        dorms (Union[List[str], None], optional): Input definition or methods. Default to None.
+        size (Union[int, None], optional):
+            Size of the dorm array, only used and required when dorms is None. Default to None.
+        default_dorm (str, optional):
+            Default dorm used when dorms is None.
+        dorm_separator (Union[str, None], optional):
+            Dorm separator for when multiple definition or methods present.
+
+    Returns:
+        List[List[str]]:
+            List of list of definition or methods. The second layer of list is for convenience
+            when there are multiple definition or methods.
+    """
+    if dorms is None:
+        if size is None:
+            raise ValueError("Size cannot be None, when dorms is None.")
+        return [[default_dorm]]*size
+    else:
+        return [dorm.split(dorm_separator) for dorm in dorms]
