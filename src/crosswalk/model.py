@@ -101,12 +101,12 @@ class CovModel:
                              num_points)
 
         if self.spline_monotonicity is not None:
-            sign = 1.0 if self.spline_monotonicity is 'decreasing' else -1.0
+            sign = 1.0 if self.spline_monotonicity == 'decreasing' else -1.0
             mat = np.vstack((mat,
                              sign*self.spline.design_dmat(points, 1)[:, 1:]))
 
         if self.spline_convexity is not None:
-            sign = 1.0 if self.spline_convexity is 'concave' else -1.0
+            sign = 1.0 if self.spline_convexity == 'concave' else -1.0
             mat = np.vstack((mat,
                              sign*self.spline.design_dmat(points, 2)[:, 1:]))
 
