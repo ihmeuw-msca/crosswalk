@@ -4,6 +4,7 @@
     ~~~~~
     `utils` module for the `crosswalk` package, provides utility functions.
 """
+from typing import List
 import numpy as np
 
 
@@ -180,3 +181,25 @@ def linear_to_logit(mean, sd):
     logit_sd = sd/(mean*(1.0 - mean))
 
     return logit_mean, logit_sd
+
+
+def flatten_list(my_list: List) -> List:
+    """Flatten list so that it will be a list of non-list object.
+
+    Args:
+        my_list (List): List need to be flattened.
+
+    Returns:
+        List: Flattened list.
+    """
+    if not isinstance(my_list, list):
+        raise ValueError("Input must be a list.")
+
+    result = []
+    for element in my_list:
+        if isinstance(element, list):
+            result.extend(flatten_list(element))
+        else:
+            result.append(element)
+
+    return result
