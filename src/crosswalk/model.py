@@ -221,12 +221,13 @@ class CWModel:
         assert isinstance(cwdata, data.CWData)
 
         relation_mat = np.zeros((cwdata.num_obs, cwdata.num_dorms))
-        relation_mat[range(cwdata.num_obs),
-                     [cwdata.dorm_idx[dorm]
-                      for dorm in cwdata.alt_dorms]] = 1.0
-        relation_mat[range(cwdata.num_obs),
-                     [cwdata.dorm_idx[dorm]
-                      for dorm in cwdata.ref_dorms]] += -1.0
+        for i, dorms in enumerate(cwdata.alt_dorms):
+            for dorm in dorms:
+                relation_mat[i, cwdata.dorm_idx[dorm]] += 1.0
+
+        for i, dorms in enumerate(cwdata.ref_dorms):
+            for dorm in dorms:
+                relation_mat[i, cwdata.dorm_idx[dorm]] -= 1.0
 
         return relation_mat
 
