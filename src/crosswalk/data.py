@@ -132,10 +132,10 @@ class CWData:
         if utils.is_numerical_array(self.obs_se):
             assert (self.obs_se > 0.0).all()
 
-        assert isinstance(self.alt_dorms, np.ndarray)
-        assert isinstance(self.ref_dorms, np.ndarray)
-        assert self.alt_dorms.shape == (self.num_obs,)
-        assert self.ref_dorms.shape == (self.num_obs,)
+        assert isinstance(self.alt_dorms, list)
+        assert isinstance(self.ref_dorms, list)
+        assert len(self.alt_dorms) == self.num_obs
+        assert len(self.ref_dorms) == self.num_obs
 
         assert isinstance(self.covs, pd.DataFrame)
         assert self.covs.shape[1] == self.num_covs
@@ -152,8 +152,8 @@ class CWData:
             self.study_id = self.study_id[sort_id]
             self.obs = self.obs[sort_id]
             self.obs_se = self.obs_se[sort_id]
-            self.alt_dorms = self.alt_dorms[sort_id]
-            self.ref_dorms = self.ref_dorms[sort_id]
+            self.alt_dorms = [self.alt_dorms[index] for index in sort_id]
+            self.ref_dorms = [self.ref_dorms[index] for index in sort_id]
             self.covs = self.covs.reindex(sort_id)
 
     def copy_dorm_structure(self, cwdata):
