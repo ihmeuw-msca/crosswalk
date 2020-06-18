@@ -439,6 +439,7 @@ class CWModel:
         new_cwdata = data.CWData(df_copy,
                                  alt_dorms=orig_dorms,
                                  ref_dorms=ref_dorms,
+                                 dorm_separator=self.cwdata.dorm_separator,
                                  covs=list(self.cwdata.covs.columns),
                                  add_intercept=False)
 
