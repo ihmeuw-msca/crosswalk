@@ -135,8 +135,7 @@ class CWData:
         assert self.covs.shape[1] == self.num_covs
 
         if self.study_id is not None:
-            assert utils.is_numerical_array(self.study_id,
-                                            shape=(self.num_obs,))
+            assert self.study_id.shape == (self.num_obs,)
 
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id.
