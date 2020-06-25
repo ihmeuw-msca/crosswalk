@@ -15,6 +15,7 @@ from xspline import XSpline
 
 @pytest.fixture
 def cwdata():
+    np.random.seed(123)
     num_obs = 10
     num_covs = 3
     df = pd.DataFrame({

@@ -23,7 +23,8 @@ def df():
         'obs_se': np.random.rand(num_obs) + 0.01,
         'alt_dorms': np.arange(num_obs),
         'ref_dorms': np.arange(num_obs)[::-1],
-        'study_id': np.array([2, 1, 2, 1, 3])
+        'study_id': np.array([2, 1, 2, 1, 3]),
+        'data_id': np.array(['A', 'B', 'C', 'D', 'E'])
     })
     for i in range(num_covs):
         df['cov%i' % i] = np.random.randn(num_obs)
@@ -65,3 +66,19 @@ def test_cwdata_add_intercept(df, study_id, add_intercept):
 
     if add_intercept:
         assert "intercept" in cwdata.covs.columns
+
+
+@pytest.mark.parametrize('data_id', [None, 'data_id'])
+def test_data_id(df, data_id):
+    cwdata = data.CWData(df,
+                         'obs',
+                         'obs_se',
+                         'alt_dorms',
+                         'ref_dorms',
+                         covs=['cov%i'%i for i in range(num_covs)],
+                         data_id=data_id)
+
+    if data_id is None:
+        assert (np.sort(cwdata.data_id) == np.arange(cwdata.num_obs)).all()
+    else:
+        assert (np.sort(cwdata.data_id) == np.sort(df[data_id].to_numpy())).all()

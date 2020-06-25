@@ -23,6 +23,7 @@ class CWData:
                  dorm_separator=None,
                  covs=None,
                  study_id=None,
+                 data_id=None,
                  add_intercept=True):
         """Constructor of CWData
 
@@ -44,8 +45,12 @@ class CWData:
                 Default to None.
             covs (list{str} | None, optional):
                 Covariates linearly parametrized the observation.
-            study_id (numpy.ndarray | None, optional):
+            study_id (str | None, optional):
                 Study id for each observation.
+            data_id (str | None, optional):
+                ID for each data, if pass in column, it requires the elements in the column
+                to be different from each other. If ``None``, the program will generate
+                a integer sequence from 0 to ``num_obs`` to serve as the data_id.
             add_intercept (bool, optional):
                 If `True`, add intercept to the current covariates.
         """
@@ -62,6 +67,7 @@ class CWData:
 
         self.covs = pd.DataFrame() if covs is None else df[covs].copy()
         self.study_id = None if study_id is None else df[study_id].values
+        self.data_id = np.arange(self.df.shape[0]) if data_id is None else df[data_id].values
 
         # dimensions of observations and covariates
         self.num_obs = self.df.shape[0]
@@ -143,12 +149,15 @@ class CWData:
         if self.study_id is not None:
             assert self.study_id.shape == (self.num_obs,)
 
+        assert len(set(self.data_id)) == self.num_obs, "data_id has to be unique for each data point."
+
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id.
         """
         if self.study_id is not None:
             sort_id = np.argsort(self.study_id)
             self.study_id = self.study_id[sort_id]
+            self.data_id = self.data_id[sort_id]
             self.obs = self.obs[sort_id]
             self.obs_se = self.obs_se[sort_id]
             self.alt_dorms = [self.alt_dorms[index] for index in sort_id]
