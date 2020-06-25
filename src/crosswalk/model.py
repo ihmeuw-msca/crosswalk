@@ -406,6 +406,44 @@ class CWModel:
             np.linalg.inv(hessian)
         ))
 
+    def create_result_df(self) -> pd.DataFrame:
+        """Create result data frame.
+
+        Returns:
+            pd.DataFrame: Data frame that contains the result.
+        """
+        # column of dorms
+        dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
+        # column of covariate name
+        cov_names = []
+        for model in self.cov_models:
+            if model.spline is None:
+                cov_names.append(model.cov_name)
+            else:
+                cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
+        # column of gamma
+        # columns of random effects
+        df = pd.DataFrame({
+            'dorms': dorms,
+            'cov_names': cov_names,
+            'beta': self.beta,
+            'beta_sd': self.beta_sd,
+        })
+
+        return df
+
+    def save_result_df(self, folder: str, filename: str = 'result.csv'):
+        """Save result.
+
+        Args:
+            folder (str): Path to the result folder.
+            filename (str): Name of the result. Default to `'result.csv'`.
+        """
+        if filename.endswith('.csv'):
+            filename += '.csv'
+        df = self.create_result_df()
+        df.to_csv(folder + '/' + filename, index=False)
+
     def adjust_orig_vals(self, df,
                          orig_dorms,
                          orig_vals_mean,
