@@ -410,7 +410,8 @@ class CWModel:
                          orig_dorms,
                          orig_vals_mean,
                          orig_vals_se,
-                         study_id=None):
+                         study_id=None,
+                         data_id=None):
         """Adjust alternative values.
 
         Args:
@@ -426,6 +427,8 @@ class CWModel:
                 alternative values.
             study_id (str | None, optional):
                 If not `None`, predict with the random effects.
+            data_id (str | None, optional):
+                If `None` create data_id by the integer sequence.
 
         Returns:
             pandas.DataFrame:
@@ -441,6 +444,7 @@ class CWModel:
                                  ref_dorms=ref_dorms,
                                  dorm_separator=self.cwdata.dorm_separator,
                                  covs=list(self.cwdata.covs.columns),
+                                 data_id=data_id,
                                  add_intercept=False)
 
         # transfer data dorm structure to the new_cwdata
@@ -503,7 +507,8 @@ class CWModel:
             'ref_vals_mean': ref_vals_mean,
             'ref_vals_sd': ref_vals_sd,
             'pred_diff_mean': pred_diff_mean,
-            'pred_diff_sd': pred_diff_sd
+            'pred_diff_sd': pred_diff_sd,
+            'data_id': new_cwdata.data_id
         })
 
         return pred_df
