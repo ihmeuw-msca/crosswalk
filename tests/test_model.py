@@ -15,6 +15,7 @@ from xspline import XSpline
 
 @pytest.fixture
 def cwdata():
+    np.random.seed(123)
     num_obs = 10
     num_covs = 3
     df = pd.DataFrame({
@@ -101,6 +102,7 @@ def test_adjust_orig_vals(cwdata, cov_models, alt_dorm, ref_dorm):
         cwmodel.beta[cwmodel.var_idx[ref_dorm]] -
         cwmodel.beta[cwmodel.var_idx[alt_dorm]]
     )))
+    assert np.allclose(pred_df['data_id'], np.arange(pred_df.shape[0]))
 
 
 @pytest.mark.parametrize('cov_name', ['cov0', 'cov1'])
