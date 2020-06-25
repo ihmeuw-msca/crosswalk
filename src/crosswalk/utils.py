@@ -6,6 +6,7 @@
 """
 from typing import List, Iterable, Union
 import numpy as np
+from scipy.stats import norm
 
 
 def is_numerical_array(x, shape=None, not_nan=True, not_inf=True):
@@ -231,3 +232,25 @@ def process_dorms(dorms: Union[str, None] = None,
         return [[default_dorm]]*size
     else:
         return [dorm.split(dorm_separator) for dorm in dorms]
+
+
+def p_value(mean: np.ndarray, std: np.ndarray, one_tailed: bool = False) -> np.ndarray:
+    """Compute the p value from mean and std.
+
+    Args:
+        mean (Union[np.ndarray, float]): Mean of the samples.
+        std (Union[np.ndarray, float]): Standard deviation of the samples.
+        one_tailed (bool): If `True` use the one tailed test.
+
+    Returns:
+        np.ndarray: An array of p-values.
+    """
+    assert all(std > 0.0), "Standard deviation has to be greater than zero."
+    if hasattr(mean, '__iter__') and hasattr(std, '__iter__'):
+        assert len(mean) == len(std), "Mean and standard deviation must have same size."
+
+    prob = norm.cdf(np.array(mean)/np.array(std))
+    pval = np.minimum(prob, 1 - prob)
+    if not one_tailed:
+        pval *= 2
+    return pval
