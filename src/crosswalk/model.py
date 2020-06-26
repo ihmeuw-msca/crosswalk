@@ -120,7 +120,8 @@ class CWModel:
                  obs_type='diff_log',
                  cov_models=None,
                  gold_dorm=None,
-                 order_prior=None):
+                 order_prior=None,
+                 use_random_intercept=True):
         """Constructor of CWModel.
         Args:
             cwdata (data.CWData):
@@ -134,6 +135,8 @@ class CWModel:
                 Gold standard definition/method.
             order_prior (list{list{str}} | None, optional):
                 Order priors between different definitions.
+            use_random_intercept (bool, optional):
+                If ``True``, use random intercept.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
@@ -141,6 +144,7 @@ class CWModel:
                                               [CovModel('intercept')])
         self.gold_dorm = utils.default_input(gold_dorm, cwdata.max_ref_dorm)
         self.order_prior = order_prior
+        self.use_random_intercept = use_random_intercept
 
         # check input
         self.check()
@@ -333,9 +337,13 @@ class CWModel:
         x = self.design_mat
         z = np.ones((self.cwdata.num_obs, 1))
 
-        uprior = np.array([[-np.inf]*self.num_vars + [0.0],
-                           [np.inf]*self.num_vars + [np.inf]])
+        uprior = np.array([[-np.inf]*self.num_vars,
+                           [np.inf]*self.num_vars])
         uprior[:, self.var_idx[self.gold_dorm]] = 0.0
+        if self.use_random_intercept:
+            uprior = np.hstack((uprior, np.array([[0.0], [np.inf]])))
+        else:
+            uprior = np.hstack((uprior, np.array([[0.0], [0.0]])))
 
         if self.constraint_mat is None:
             cfun = None
@@ -405,6 +413,51 @@ class CWModel:
         self.beta_sd[unconstrained_id] = np.sqrt(np.diag(
             np.linalg.inv(hessian)
         ))
+
+    def create_result_df(self) -> pd.DataFrame:
+        """Create result data frame.
+
+        Returns:
+            pd.DataFrame: Data frame that contains the result.
+        """
+        # column of dorms
+        dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
+        # column of covariate name
+        cov_names = []
+        for model in self.cov_models:
+            if model.spline is None:
+                cov_names.append(model.cov_name)
+            else:
+                cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
+        cov_names *= self.cwdata.num_dorms
+        # column of gamma and random effects
+        gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
+        re = np.hstack((self.lt.u, np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan)))
+
+        # create data frame
+        df = pd.DataFrame({
+            'dorms': dorms,
+            'cov_names': cov_names,
+            'beta': self.beta,
+            'beta_sd': self.beta_sd,
+            'gamma': gamma
+        })
+        for i, study_id in enumerate(self.cwdata.unique_study_id):
+            df[study_id] = re[i]
+
+        return df
+
+    def save_result_df(self, folder: str, filename: str = 'result.csv'):
+        """Save result.
+
+        Args:
+            folder (str): Path to the result folder.
+            filename (str): Name of the result. Default to `'result.csv'`.
+        """
+        if not filename.endswith('.csv'):
+            filename += '.csv'
+        df = self.create_result_df()
+        df.to_csv(folder + '/' + filename, index=False)
 
     def adjust_orig_vals(self, df,
                          orig_dorms,
