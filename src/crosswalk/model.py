@@ -429,10 +429,12 @@ class CWModel:
                 cov_names.append(model.cov_name)
             else:
                 cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
-        # column of gamma
+        cov_names *= self.cwdata.num_dorms
+        # column of gamma and random effects
         gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
         re = np.hstack((self.lt.u, np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan)))
-        # columns of random effects
+
+        # create data frame
         df = pd.DataFrame({
             'dorms': dorms,
             'cov_names': cov_names,
@@ -452,7 +454,7 @@ class CWModel:
             folder (str): Path to the result folder.
             filename (str): Name of the result. Default to `'result.csv'`.
         """
-        if filename.endswith('.csv'):
+        if not filename.endswith('.csv'):
             filename += '.csv'
         df = self.create_result_df()
         df.to_csv(folder + '/' + filename, index=False)
