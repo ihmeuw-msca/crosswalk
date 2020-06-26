@@ -55,19 +55,28 @@ class CWData:
                 If `True`, add intercept to the current covariates.
         """
         self.df = df
-        self.obs = None if obs is None else df[obs].values
+
+        self.col_obs = obs
+        self.col_obs_se = obs_se
+        self.col_alt_dorms = alt_dorms
+        self.col_ref_dorms = ref_dorms
+        self.col_covs = covs
+        self.col_study_id = study_id
+        self.col_data_id = data_id
+
+        self.obs = None if self.col_obs is None else df[self.col_obs].values
         self.obs_se = None if obs_se is None else df[obs_se].values
         self.dorm_separator = dorm_separator
-        alt_dorms = alt_dorms if alt_dorms is None else df[alt_dorms].to_numpy().astype(str)
-        ref_dorms = ref_dorms if ref_dorms is None else df[ref_dorms].to_numpy().astype(str)
+        alt_dorms = alt_dorms if self.col_alt_dorms is None else df[self.col_alt_dorms].to_numpy().astype(str)
+        ref_dorms = ref_dorms if self.col_ref_dorms is None else df[self.col_ref_dorms].to_numpy().astype(str)
         self.alt_dorms = utils.process_dorms(dorms=alt_dorms, size=self.df.shape[0],
                                              default_dorm='alt', dorm_separator=self.dorm_separator)
         self.ref_dorms = utils.process_dorms(dorms=ref_dorms, size=self.df.shape[0],
                                              default_dorm='ref', dorm_separator=self.dorm_separator)
 
-        self.covs = pd.DataFrame() if covs is None else df[covs].copy()
-        self.study_id = None if study_id is None else df[study_id].values
-        self.data_id = np.arange(self.df.shape[0]) if data_id is None else df[data_id].values
+        self.covs = pd.DataFrame() if self.col_covs is None else df[self.col_covs].copy()
+        self.study_id = None if self.col_study_id is None else df[self.col_study_id].values
+        self.data_id = np.arange(self.df.shape[0]) if self.col_data_id is None else df[self.col_data_id].values
 
         # dimensions of observations and covariates
         self.num_obs = self.df.shape[0]
