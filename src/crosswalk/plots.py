@@ -13,10 +13,27 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
     
     # drop dose variable
     continuous_variables = [v for v in continuous_variables if v != dose_variable]
+    # dictionary of cov_model name with corresponding index
+    cov_idx = {}
+    # list of cov_model with correponding number of intervals
+    lst_intervals = []
+    for idx in np.arange(len(mrbrt.cov_models)):
+        cov = mrbrt.cov_models[idx].cov_name
+        cov_idx[cov] = idx
+        if mrbrt.cov_models[idx].spline:
+            num_intervals = mrbrt.cov_models[idx].spline.num_intervals
+        else:
+            # For cov with no spline
+            num_intervals = 1
+        lst_intervals.append(num_intervals)
+    # Slices for each cov; for extracting betas later on
+#     lst_slices = cw.utils.sizes_to_slices(np.array(lst_intervals))
+    lst_slices = sizes_to_slices(np.array(lst_intervals))
     
     # check for knots
     if dose_variable in mrdata.covs.columns:
-        knots = mrbrt.cov_models[1].spline.knots
+        idx = cov_idx[dose_variable]
+        knots = mrbrt.cov_models[idx].spline.knots
     else:
         knots = np.array([])
     
@@ -65,18 +82,13 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
 
     y_mean = y_pred['pred_diff_mean']
     y_sd_fixed = y_pred['pred_diff_sd']
-#     y_pred = np.ravel(y_pred)
-#     y_draws_random = np.random.normal(y_mean, y_sd, [1000, len(y_mean)]).T
-#     y_draws_non_random = np.random.normal(y_mean, y_sd_fixed, [1000, len(y_mean)]).T
     gamma = mrbrt.gamma
-
     y_sd = np.sqrt(y_sd_fixed**2 + gamma)
 
-
+    # lower/upper bound with fixed effect and heterogeneity
     y_lo, y_hi = y_mean - 1.96*y_sd, y_mean + 1.96*y_sd
+    # lower/upper bound with only fixed effect
     y_lo_fe, y_hi_fe = y_mean - 1.96*y_sd_fixed, y_mean + 1.96*y_sd_fixed
-#     y_lo, y_hi = np.quantile(y_draws_random, [0.025, 0.975], axis=1)
-#     y_lo_fe, y_hi_fe = np.quantile(y_draws_non_random, [0.025, 0.975], axis=1)
 
      # predict for mrdata
     data_df['intercept'] = 1
@@ -87,12 +99,14 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
           orig_vals_se = "prev_se"
         )
     data_pred = data_pred['pred_diff_mean']
+
     # determine points inside/outside funnel
     data_df['position'] = 'inside funnel'
     data_df.loc[data_df.y < (data_pred - (data_df.se * 1.96)).values,
                 'position'] = 'outside funnel'
     data_df.loc[data_df.y > (data_pred + (data_df.se * 1.96)).values,
                 'position'] = 'outside funnel'
+
     # get inlier/outlier 
     data_df.loc[data_df.w >= 0.6, 'trim'] = 'inlier'
     data_df.loc[data_df.w < 0.6, 'trim'] = 'outlier'
@@ -137,7 +151,12 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
             label=key
         )
     betas = list(np.round(mrbrt.fixed_vars[obs_method], 3))
-    content_string = f"betas: {betas}"
+    content_string = ""
+    for idx in np.arange(len(mrbrt.cov_models)):
+        cov = mrbrt.cov_models[idx].cov_name
+        knots_slices = lst_slices[idx]
+        content_string += f"{cov}: {betas[knots_slices]}; "
+#     content_string = f"intercept: {intercept}; dose_variable: {beta_dose}"
     if plot_note is not None:
         plt.title(content_string, fontsize=6)
         plt.suptitle(plot_note, y=1.01, fontsize=8)
@@ -186,21 +205,12 @@ def funnel_plot(obs_method='Self-reported', mrdir=None, mrdata=None, mrbrt=None,
     y_mean, y_sd = y_pred[2], y_pred[3]
     # create draws
     y_lower, y_upper = y_mean - 1.96*y_sd, y_mean + 1.96*y_sd
-#     y_draws = np.random.normal(y_mean, y_sd, 1000)
     
     # triangle
     max_se = mrdata.obs_se.max()
     se_domain = np.arange(0, max_se*1.1, max_se / 100)
     se_lower = y_mean - (se_domain*1.96)
     se_upper = y_mean + (se_domain*1.96)
-    
-#     y_mean, y_lower, y_upper = np.round(y_mean, 3), np.round(y_lower, 3), np.round(y_upper, 3)
-    
-    # p-value
-#     if y_mean > 0:
-#         p_value = np.mean(y_draws < 0)/2.0
-#     else:
-#         p_value = np.mean(y_draws > 0)/2.0
     
     p_value = cw.utils.p_value(np.array([y_mean]), np.array([y_sd]))[0]
     
@@ -229,7 +239,7 @@ def funnel_plot(obs_method='Self-reported', mrdir=None, mrdata=None, mrbrt=None,
     plt.plot(ol_data_df.y, ol_data_df.se, 'o',
              markersize=5, markerfacecolor='indianred', markeredgecolor='maroon',  markeredgewidth=0.6,
              alpha=.6, label='Outlier')
-    plt.legend(loc='upper left')
+    plt.legend(loc='upper left', frameon=False)
     plt.gca().invert_yaxis()
     if plot_note is not None:
         plt.title(content_string, fontsize=6)
