@@ -1,12 +1,20 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import crosswalk as cw
+
+
 def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
-                        mr_dir=None, mrdata=None, mrbrt=None,
+                        mrdir=None, mrdata=None, mrbrt=None,
                         file_name='dose_response_plot',
                         from_zero=False, include_bias=False,
                         ylim=None, y_transform=None, x_transform=None,
                         plot_note=None,
                         write_file=False):
     data_df = pd.DataFrame({'y': mrdata.obs, 'se': mrdata.obs_se, 'w': mrbrt.lt.w, 
-                            f"{dose_variable}": dat1.covs[dose_variable], 
+                            f"{dose_variable}": mrdata.covs[dose_variable], 
                             "obs_method": np.ravel(mrdata.alt_dorms),
                             "prev": mrdata.df['prev_alt'].values, 
                             "prev_se": mrdata.df['prev_se_alt'].values})
@@ -27,13 +35,16 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
             num_intervals = 1
         lst_intervals.append(num_intervals)
     # Slices for each cov; for extracting betas later on
-#     lst_slices = cw.utils.sizes_to_slices(np.array(lst_intervals))
-    lst_slices = sizes_to_slices(np.array(lst_intervals))
+    lst_slices = cw.utils.sizes_to_slices(np.array(lst_intervals))
+    # lst_slices = sizes_to_slices(np.array(lst_intervals))
     
     # check for knots
     if dose_variable in mrdata.covs.columns:
         idx = cov_idx[dose_variable]
-        knots = mrbrt.cov_models[idx].spline.knots
+        if mrbrt.cov_models[idx].spline:
+            knots = mrbrt.cov_models[idx].spline.knots
+        else:
+            knots = np.array([])
     else:
         knots = np.array([])
     
@@ -66,7 +77,6 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
 
     # predict for line
     pred_df[dose_variable] = dose_grid
-    pred_df['row_id'] = np.arange(1, len(pred_df)+1)
     pred_df['obs_method'] = obs_method
     pred_df['prev'] = 0.1
     pred_df['prev_se'] = 0.1
@@ -76,8 +86,7 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
           df=pred_df,            
           orig_dorms = "obs_method", 
           orig_vals_mean = "prev",  
-          orig_vals_se = "prev_se",
-        data_id = 'row_id'
+          orig_vals_se = "prev_se"
         )
 
     y_mean = y_pred['pred_diff_mean']
@@ -129,8 +138,10 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
     plt.figure(figsize=(10, 8))
     plt.rcParams['axes.edgecolor'] = '0.15'
     plt.rcParams['axes.linewidth'] = 0.5
-    plt.fill_between(pred_df[dose_variable], y_lo, y_hi, alpha=0.5, color='lightgrey')
-    plt.fill_between(pred_df[dose_variable], y_lo_fe, y_hi_fe, alpha=0.75, color='darkgrey')
+    plt.fill_between(pred_df[dose_variable], y_lo, y_hi, 
+        alpha=0.5, color='lightgrey')
+    plt.fill_between(pred_df[dose_variable], y_lo_fe, y_hi_fe, 
+        alpha=0.75, color='darkgrey')
     plt.plot(pred_df[dose_variable], y_mean, color='black', linewidth=0.75)
     plt.xlim([min_cov, max_cov])
     if ylim is not None:
@@ -156,7 +167,7 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
         cov = mrbrt.cov_models[idx].cov_name
         knots_slices = lst_slices[idx]
         content_string += f"{cov}: {betas[knots_slices]}; "
-#     content_string = f"intercept: {intercept}; dose_variable: {beta_dose}"
+
     if plot_note is not None:
         plt.title(content_string, fontsize=6)
         plt.suptitle(plot_note, y=1.01, fontsize=8)
@@ -169,16 +180,16 @@ def dose_response_curve(dose_variable, obs_method, continuous_variables=[],
     
     if write_file:
         assert mrdir is not None, "mrdir is not specified!"
-        assert file_name is not None, "file_name is not specified!"
-        plt.savefig(os.path.join(mr_dir, f'{file_name}.pdf'), orientation='landscape', bbox_inches='tight')
+        outfile = os.path.join(mrdir, f'{file_name}.pdf')
+        plt.savefig(outfile, orientation='landscape', bbox_inches='tight')
+        print(f"File saved at {outfile}")
     else:
         plt.show()
 
 
 def funnel_plot(obs_method='Self-reported', mrdir=None, mrdata=None, mrbrt=None, 
                 continuous_variables=[], file_name='funnel_plot', 
-                plot_note=None, include_bias=False, write_file=False, 
-                beta_samples=None, gamma_samples=None):
+                plot_note=None, include_bias=False, write_file=False):
     """Funnel Plot."""
     data_df = pd.DataFrame({'y': mrdata.obs, 'se': mrdata.obs_se, 'w': mrbrt.lt.w})
     
@@ -234,10 +245,12 @@ def funnel_plot(obs_method='Self-reported', mrdir=None, mrdata=None, mrbrt=None,
     plt.yticks(fontsize=10)
     plt.axvline(0, color='mediumseagreen', alpha=0.75, linewidth=0.75)
     plt.plot(il_data_df.y, il_data_df.se, 'o',
-             markersize=5, markerfacecolor='royalblue', markeredgecolor='navy', markeredgewidth=0.6,
+             markersize=5, markerfacecolor='royalblue', 
+             markeredgecolor='navy', markeredgewidth=0.6,
              alpha=.6, label='Inlier')
     plt.plot(ol_data_df.y, ol_data_df.se, 'o',
-             markersize=5, markerfacecolor='indianred', markeredgecolor='maroon',  markeredgewidth=0.6,
+             markersize=5, markerfacecolor='indianred', 
+             markeredgecolor='maroon',  markeredgewidth=0.6,
              alpha=.6, label='Outlier')
     plt.legend(loc='upper left', frameon=False)
     plt.gca().invert_yaxis()
@@ -249,8 +262,9 @@ def funnel_plot(obs_method='Self-reported', mrdir=None, mrdata=None, mrbrt=None,
         
     if write_file:
         assert mrdir is not None, "mrdir is not specified!"
-        assert file_name is not None, "file_name is not specified!"
-        plt.savefig(os.path.join(mrdir, file_name + '.pdf'), orientation='landscape', bbox_inches='tight')
+        outfile = os.path.join(mrdir, file_name + '.pdf')
+        plt.savefig(outfile, orientation='landscape', bbox_inches='tight')
+        print(f"File saved at {outfile}")
     else:
         plt.show()
     plt.clf()
