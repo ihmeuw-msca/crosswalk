@@ -5,6 +5,7 @@
 
     `model` module of the `crosswalk` package.
 """
+import warnings
 import numpy as np
 import pandas as pd
 import limetr
@@ -145,6 +146,10 @@ class CWModel:
         self.gold_dorm = utils.default_input(gold_dorm, cwdata.max_ref_dorm)
         self.order_prior = order_prior
         self.use_random_intercept = use_random_intercept
+        if self.cwdata.num_studies == 0 and self.use_random_intercept:
+            warnings.warn("Must have study_id to use random intercept."
+                          " Reset use_random_intercept to False.")
+            self.use_random_intercept = False
 
         # check input
         self.check()
@@ -330,6 +335,8 @@ class CWModel:
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
+        if n.size == 0:
+            n = np.full(self.cwdata.num_obs, 1)
         k_beta = self.num_vars
         k_gamma = 1
         y = self.cwdata.obs
@@ -383,11 +390,14 @@ class CWModel:
             var: self.beta[self.var_idx[var]]
             for var in self.vars
         }
-        u = self.lt.estimateRE()
-        self.random_vars = {
-            sid: u[i]
-            for i, sid in enumerate(self.cwdata.unique_study_id)
-        }
+        if self.use_random_intercept:
+            u = self.lt.estimateRE()
+            self.random_vars = {
+                sid: u[i]
+                for i, sid in enumerate(self.cwdata.unique_study_id)
+            }
+        else:
+            self.random_vars = dict()
 
         # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta)*np.sqrt(self.lt.w)[:, None]
@@ -430,9 +440,6 @@ class CWModel:
             else:
                 cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
         cov_names *= self.cwdata.num_dorms
-        # column of gamma and random effects
-        gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
-        re = np.hstack((self.lt.u, np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan)))
 
         # create data frame
         df = pd.DataFrame({
@@ -440,10 +447,13 @@ class CWModel:
             'cov_names': cov_names,
             'beta': self.beta,
             'beta_sd': self.beta_sd,
-            'gamma': gamma
         })
-        for i, study_id in enumerate(self.cwdata.unique_study_id):
-            df[study_id] = re[i]
+        if self.use_random_intercept:
+            gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
+            re = np.hstack((self.lt.u, np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan)))
+            df['gamma'] = gamma
+            for i, study_id in enumerate(self.cwdata.unique_study_id):
+                df[study_id] = re[i]
 
         return df
 

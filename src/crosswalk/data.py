@@ -118,8 +118,8 @@ class CWData:
 
         # study structure
         if self.study_id is None:
-            self.num_studies = self.num_obs
-            self.study_sizes = np.array([1]*self.num_obs)
+            self.num_studies = 0
+            self.study_sizes = np.array([])
             self.unique_study_id = None
         else:
             self.num_studies, \

@@ -47,8 +47,8 @@ def test_cwdata_study_id(df, study_id):
         assert tuple(cwdata.unique_study_id) == (1, 2, 3)
         assert tuple(cwdata.study_id) == (1, 1, 2, 2, 3)
     else:
-        assert cwdata.num_studies == 5
-        assert tuple(cwdata.study_sizes) == tuple([1]*num_obs)
+        assert cwdata.num_studies == 0
+        assert cwdata.study_sizes.size == 0
         assert cwdata.unique_study_id is None
 
 
