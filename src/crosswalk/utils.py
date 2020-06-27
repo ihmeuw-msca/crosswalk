@@ -59,6 +59,26 @@ def sizes_to_indices(sizes):
     return indices
 
 
+def sizes_to_slices(sizes):
+    """Converting sizes to corresponding slices.
+    Args:
+        sizes (numpy.dnarray):
+            An array consist of non-negative number.
+    Returns:
+        list{slice}:
+            List the slices.
+    """
+    slices = []
+    a = 0
+    b = 0
+    for i, size in enumerate(sizes):
+        b += size
+        slices.append(slice(a, b))
+        a += size
+
+    return slices
+
+
 def array_structure(x):
     """Return the structure of the array.
 
