@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import crosswalk as cw
+from . import utils
 
 
 def dose_response_curve(dose_variable, obs_method,
@@ -62,9 +62,8 @@ def dose_response_curve(dose_variable, obs_method,
             num_intervals = 1
         lst_intervals.append(num_intervals)
     # Slices for each cov based on number of knots; for extracting betas later on
-    # lst_slices = cw.utils.sizes_to_slices(np.array(lst_intervals))
-    lst_slices = sizes_to_slices(np.array(lst_intervals))
-    
+    lst_slices = utils.sizes_to_slices(np.array(lst_intervals))
+
     # check for knots
     if dose_variable in cwdata.covs.columns:
         idx = cov_idx[dose_variable]
@@ -297,7 +296,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     
     # Statistics in title 
     y_lower, y_upper = y_mean - 1.96*y_sd, y_mean + 1.96*y_sd
-    p_value = cw.utils.p_value(np.array([y_mean]), np.array([y_sd]))[0]
+    p_value = utils.p_value(np.array([y_mean]), np.array([y_sd]))[0]
     content_string = f"Mean effect: {np.round(y_mean, 3)}\
     (95% CI: {np.round(y_lower, 3)} to {np.round(y_upper, 3)});\
     p-value: {np.round(p_value, 4)}"
@@ -351,23 +350,3 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     else:
         plt.show()
     plt.clf()
-
-
-def sizes_to_slices(sizes):
-    """Converting sizes to corresponding slices.
-    Args:
-        sizes (numpy.dnarray):
-            An array consist of non-negative number.
-    Returns:
-        list{slice}:
-            List the slices.
-    """
-    slices = []
-    a = 0
-    b = 0
-    for i, size in enumerate(sizes):
-        b += size
-        slices.append(slice(a, b))
-        a += size
-
-    return slices
