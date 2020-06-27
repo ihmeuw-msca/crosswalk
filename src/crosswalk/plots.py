@@ -15,13 +15,31 @@ def dose_response_curve(dose_variable, obs_method,
     """Dose response curve.
     Args:
         dose_variable (str):
+            Dose variable name.
         obs_method (str):
+            Alternative definition or method intended to be plotted.
         continuous_variables (list):
+            List of continuous covariate names.
         cwdir (str):
+            Directory where to save the plot.
         cwdata (CWData object):
             CrossWalk data object.
         cwmodel (CWModel object):
             Fitted CrossWalk model object.
+        from_zero (bool):
+            If set to be True, y-axis will start from zero.
+        ylim (list of int or float):
+            y-axis bound. E.g. [0, 10]
+        file_name (str):
+            File name for the plot.
+        plot_note (str):
+            The notes intended to be written on the title.
+        include_bias (bool):
+            Whether to include bias or not.
+        write_file (bool):
+            Specify `True` if the plot is expected to be saved on disk.
+            If True, `cwdir` should be specified too.
+
     """ 
     data_df = pd.DataFrame({'y': cwdata.df[cwdata.col_obs].values, 
                             'se': cwdata.df[cwdata.col_obs_se].values, 
@@ -81,7 +99,7 @@ def dose_response_curve(dose_variable, obs_method,
             index=np.arange(len(dose_grid)))
         pred_df['intercept'] = 1
         
-    # if it's continuous variables, take median 
+    # if it's continuous variable, take median 
     for var in continuous_variables:
         pred_df[var] = np.median(cwdata.get_covs(var))
 
@@ -161,15 +179,16 @@ def dose_response_curve(dose_variable, obs_method,
     plt.xticks(fontsize=10)
     plt.ylabel('Effect size', fontsize=10)
     plt.yticks(fontsize=10)
-    # Scatterplot size, shape, color
 
+    # other comparison
     non_direct_df = data_df.loc[
     (data_df.dorm_ref != cwmodel.gold_dorm) | (data_df.dorm_alt != obs_method)
     ]
-
+    # direct comparison
     plot_data_df = data_df.loc[
     (data_df.dorm_ref == cwmodel.gold_dorm) & (data_df.dorm_alt == obs_method)
     ]
+    
     for key, value in plot_key.items():
         plt.scatter(
             plot_data_df.loc[plot_data_df.plot_guide == key, f'{dose_variable}'],
@@ -179,7 +198,8 @@ def dose_response_curve(dose_variable, obs_method,
             linewidth=0.6, alpha=.6, label=key
         )
     plt.scatter(non_direct_df[f'{dose_variable}'], non_direct_df['y'],
-                facecolors='grey', edgecolors='grey', alpha=.3)
+                facecolors='grey', edgecolors='grey', alpha=.3,
+                s=non_direct_df.loc[non_direct_df.plot_guide == key, 'size_var'])
     # Content string with betas
     betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
     content_string = ""
@@ -235,17 +255,34 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     """
     assert obs_method in np.unique(cwdata.alt_dorms), f"{obs_method} not in alt_dorms!"
 
-    data_df = pd.DataFrame({'y': cwdata.obs, 'se': cwdata.obs_se, 'w': cwmodel.lt.w})
-    
-    # inlier, outlier
-    il_data_df = data_df.loc[data_df.w >= 0.6]
-    ol_data_df = data_df.loc[data_df.w < 0.6]
+    data_df = pd.DataFrame({'y': cwdata.obs, 'se': cwdata.obs_se, 'w': cwmodel.lt.w,
+                            "dorm_alt": cwdata.df[cwdata.col_alt_dorms].values, 
+                            "dorm_ref": cwdata.df[cwdata.col_ref_dorms].values})
+
+    # determine points inside/outside funnel
+    data_df['position'] = 'other'
+    data_df.loc[
+    (data_df.dorm_ref == cwmodel.gold_dorm) & (data_df.dorm_alt == obs_method),
+     'position'] = 'direct comparison'
+
+    # get inlier/outlier 
+    data_df.loc[data_df.w >= 0.6, 'trim'] = 'inlier'
+    data_df.loc[data_df.w < 0.6, 'trim'] = 'outlier'
+
+    # get plot guide
+    data_df['plot_guide'] = data_df['trim'] + ', ' + data_df['position']
+    plot_key = {
+        'inlier, other':('o', 'seagreen', 'grey'),
+        'inlier, direct comparison':('o', 'coral', 'firebrick'),
+        'outlier, other':('x', 'darkgreen', 'grey'),
+        'outlier, direct comparison':('x', 'firebrick', 'firebrick')
+    }
         
     # construct dataframe for prediction, prev and prev_se don't matter.
     pred_df = pd.DataFrame({'obs_method': obs_method,  
                             'prev': 0.1, 
                             'prev_se': 0.1}, index=[0])
-    # if it's continuous variables, take median 
+    # if it's continuous variable, take median 
     for var in continuous_variables:
         pred_df[var] = np.median(cwdata.covs[var])
     
@@ -288,14 +325,16 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     plt.yticks(fontsize=10)
     plt.axvline(0, color='mediumseagreen', alpha=0.75, linewidth=0.75)
     # Plot inlier and outlier
-    plt.plot(il_data_df.y, il_data_df.se, 'o',
-             markersize=5, markerfacecolor='royalblue', 
-             markeredgecolor='navy', markeredgewidth=0.6,
-             alpha=.6, label='Inlier')
-    plt.plot(ol_data_df.y, ol_data_df.se, 'o',
-             markersize=5, markerfacecolor='indianred', 
-             markeredgecolor='maroon',  markeredgewidth=0.6,
-             alpha=.6, label='Outlier')
+    for key, value in plot_key.items():
+        plt.plot(
+            data_df.loc[data_df.plot_guide == key, 'y'],
+            data_df.loc[data_df.plot_guide == key, 'se'],
+            'o',
+            markersize=5,
+            marker=value[0], markerfacecolor=value[1], markeredgecolor=value[2], 
+            markeredgewidth=0.6, alpha=.6, label=key
+        )
+
     plt.legend(loc='upper left', frameon=False)
     plt.gca().invert_yaxis()
     # Plot title
@@ -313,6 +352,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     else:
         plt.show()
     plt.clf()
+
 
 def sizes_to_slices(sizes):
     """Converting sizes to corresponding slices.
