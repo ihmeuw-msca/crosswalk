@@ -196,8 +196,11 @@ def dose_response_curve(dose_variable, obs_method,
             marker=value[0], facecolors=value[1], edgecolors=value[2], 
             linewidth=0.6, alpha=.6, label=key
         )
-    plt.scatter(non_direct_df[f'{dose_variable}'], non_direct_df['y'],
-                facecolors='grey', edgecolors='grey', alpha=.3)
+
+    if not non_direct_df.empty:
+        plt.scatter(non_direct_df[f'{dose_variable}'], non_direct_df['y'],
+                    facecolors='grey', edgecolors='grey', alpha=.3, 
+                    label="Other comparison")
     # Content string with betas
     betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
     content_string = ""
