@@ -8,7 +8,7 @@ import crosswalk as cw
 
 def dose_response_curve(dose_variable, obs_method,
                         continuous_variables=[], 
-                        cwdir=None, cwdata=None, cwmodel=None,
+                        plots_dir=None, cwdata=None, cwmodel=None,
                         file_name='dose_response_plot',
                         from_zero=False, include_bias=False,
                         ylim=None, plot_note=None, write_file=False):
@@ -20,7 +20,7 @@ def dose_response_curve(dose_variable, obs_method,
             Alternative definition or method intended to be plotted.
         continuous_variables (list):
             List of continuous covariate names.
-        cwdir (str):
+        plots_dir (str):
             Directory where to save the plot.
         cwdata (CWData object):
             CrossWalk data object.
@@ -38,7 +38,7 @@ def dose_response_curve(dose_variable, obs_method,
             Whether to include bias or not.
         write_file (bool):
             Specify `True` if the plot is expected to be saved on disk.
-            If True, `cwdir` should be specified too.
+            If True, `plots_dir` should be specified too.
 
     """ 
     data_df = pd.DataFrame({'y': cwdata.df[cwdata.col_obs].values, 
@@ -198,8 +198,7 @@ def dose_response_curve(dose_variable, obs_method,
             linewidth=0.6, alpha=.6, label=key
         )
     plt.scatter(non_direct_df[f'{dose_variable}'], non_direct_df['y'],
-                facecolors='grey', edgecolors='grey', alpha=.3,
-                s=non_direct_df.loc[non_direct_df.plot_guide == key, 'size_var'])
+                facecolors='grey', edgecolors='grey', alpha=.3)
     # Content string with betas
     betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
     content_string = ""
@@ -219,8 +218,8 @@ def dose_response_curve(dose_variable, obs_method,
         plt.axvline(knot, color='navy', linestyle='--', alpha=0.5, linewidth=0.75)
     # Save plots
     if write_file:
-        assert cwdir is not None, "cwdir is not specified!"
-        outfile = os.path.join(cwdir, f'{file_name}.pdf')
+        assert plots_dir is not None, "plots_dir is not specified!"
+        outfile = os.path.join(plots_dir, f'{file_name}.pdf')
         plt.savefig(outfile, orientation='landscape', bbox_inches='tight')
         print(f"Dose response plot saved at {outfile}")
     else:
@@ -228,7 +227,7 @@ def dose_response_curve(dose_variable, obs_method,
 
 
 def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None, 
-                continuous_variables=[], cwdir=None, file_name='funnel_plot', 
+                continuous_variables=[], plots_dir=None, file_name='funnel_plot', 
                 plot_note=None, include_bias=False, write_file=False):
     """Funnel Plot.
     Args:
@@ -240,7 +239,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
             Fitted CrossWalk model object.
         continuous_variables (list):
             List of continuous covariate names.
-        cwdir (str):
+        plots_dir (str):
             Directory where to save the plot.
         file_name (str):
             File name for the plot.
@@ -250,7 +249,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
             Whether to include bias or not.
         write_file (bool):
             Specify `True` if the plot is expected to be saved on disk.
-            If True, `cwdir` should be specified too.
+            If True, `plots_dir` should be specified too.
 
     """
     assert obs_method in np.unique(cwdata.alt_dorms), f"{obs_method} not in alt_dorms!"
@@ -345,8 +344,8 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
         plt.title(content_string, fontsize=10)
     # Save plots
     if write_file:
-        assert cwdir is not None, "cwdir is not specified!"
-        outfile = os.path.join(cwdir, file_name + '.pdf')
+        assert plots_dir is not None, "plots_dir is not specified!"
+        outfile = os.path.join(plots_dir, file_name + '.pdf')
         plt.savefig(outfile, orientation='landscape', bbox_inches='tight')
         print(f"Funnel plot saved at {outfile}")
     else:
