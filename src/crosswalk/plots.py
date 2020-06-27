@@ -197,7 +197,7 @@ def dose_response_curve(dose_variable, obs_method,
             linewidth=0.6, alpha=.6, label=key
         )
 
-    if len(non_direct_df):
+    if not non_direct_df.empty:
         plt.scatter(non_direct_df[f'{dose_variable}'], non_direct_df['y'],
                     facecolors='grey', edgecolors='grey', alpha=.3, 
                     label="Other comparison")
