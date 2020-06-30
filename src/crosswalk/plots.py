@@ -251,7 +251,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
             If True, `plots_dir` should be specified too.
 
     """
-    assert obs_method in np.unique(cwdata.alt_dorms), f"{obs_method} not in alt_dorms!"
+    assert obs_method in cwdata.unique_alt_dorms, f"{obs_method} not in alt_dorms!"
 
     data_df = pd.DataFrame({'y': cwdata.obs, 'se': cwdata.obs_se, 'w': cwmodel.lt.w,
                             "dorm_alt": cwdata.df[cwdata.col_alt_dorms].values, 
