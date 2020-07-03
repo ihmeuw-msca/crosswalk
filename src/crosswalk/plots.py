@@ -261,7 +261,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
                             "dorm_ref": cwdata.df[cwdata.col_ref_dorms].values})
 
     # determine points inside/outside funnel
-    data_df['position'] = 'other'
+    data_df['position'] = 'other comparison'
     data_df.loc[
     (data_df.dorm_ref == cwmodel.gold_dorm) & (data_df.dorm_alt == obs_method),
      'position'] = 'direct comparison'
@@ -273,10 +273,10 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     # get plot guide
     data_df['plot_guide'] = data_df['trim'] + ', ' + data_df['position']
     plot_key = {
-        'inlier, other':('o', 'seagreen', 'grey'),
-        'inlier, direct comparison':('o', 'coral', 'firebrick'),
-        'outlier, other':('x', 'darkgreen', 'grey'),
-        'outlier, direct comparison':('x', 'firebrick', 'firebrick')
+        'inlier, other comparison':('o', 'grey', 'grey', 0.3),
+        'inlier, direct comparison':('o', 'coral', 'firebrick', 0.75),
+        'outlier, other comparison':('x', 'grey', 'grey', 0.3),
+        'outlier, direct comparison':('x', 'firebrick', 'firebrick', 0.75)
     }
         
     # construct dataframe for prediction, prev and prev_se don't matter.
@@ -333,7 +333,7 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
             'o',
             markersize=5,
             marker=value[0], markerfacecolor=value[1], markeredgecolor=value[2], 
-            markeredgewidth=0.6, alpha=.6, label=key
+            markeredgewidth=0.6, alpha=value[3], label=key
         )
 
     plt.legend(loc='upper left', frameon=False)
