@@ -136,7 +136,6 @@ class CWData:
             self.unique_study_id = utils.array_structure(self.study_id)
         self.sort_by_study_id()
 
-
     def check(self):
         """Check inputs type, shape and value.
         """

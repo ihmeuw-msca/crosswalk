@@ -189,6 +189,7 @@ class CWModel:
 
         # create design matrix
         self.relation_mat = self.create_relation_mat()
+        self._check_relation_mat()
         self.cov_mat = self.create_cov_mat()
         self.design_mat = self.create_design_mat()
         self.constraint_mat = self.create_constraint_mat()
@@ -239,6 +240,17 @@ class CWModel:
                 relation_mat[i, cwdata.dorm_idx[dorm]] -= 1.0
 
         return relation_mat
+
+    def _check_relation_mat(self):
+        """Check relation matrix, detect unused dorms.
+        """
+        col_scales = np.max(np.abs(self.relation_mat), axis=0)
+        unused_dorms = [self.cwdata.unique_dorms[i]
+                        for i, scale in enumerate(col_scales) if scale == 0.0]
+        if len(unused_dorms) != 0:
+            raise ValueError(f"{unused_dorms} appears to be unused, most likely it is (they are) "
+                             f"in both alt_dorms and ref_dorms at the same time for all its (their) "
+                             f"appearance. Please remove {unused_dorms} from alt_dorms and ref_dorms.")
 
     def create_cov_mat(self, cwdata=None):
         """Create covariates matrix for definitions/methods model.
