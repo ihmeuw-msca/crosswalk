@@ -337,21 +337,21 @@ class CWModel:
 
     def fit(self,
             max_iter=100,
+            inlier_pct=1.0,
             outer_max_iter=100,
-            outer_step_size=1.0,
-            inlier_pct=1.0):
+            outer_step_size=1.0):
         """Optimize the model parameters.
         This is a interface to limetr.
         Args:
             max_iter (int, optional):
                 Maximum number of iterations.
+            inlier_pct (float, optional):
+                How much percentage of the data do you trust.
             outer_max_iter (int, optional):
                 Outer maximum number of iterations.
             outer_step_size (float, optional):
                 Step size of the trimming problem, the larger the step size the faster it will converge,
                 and the less quality of trimming it will guarantee.
-            inlier_pct (float, optional):
-                How much percentage of the data do you trust.
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
