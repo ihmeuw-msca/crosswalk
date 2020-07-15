@@ -175,8 +175,7 @@ class CWModel:
         self.vars = [dorm for dorm in self.cwdata.unique_dorms]
 
         # dimensions
-        self.num_vars_per_dorm = sum([model.num_vars
-                                      for model in self.cov_models])
+        self.num_vars_per_dorm = sum([model.num_vars for model in self.cov_models])
         self.num_vars = self.num_vars_per_dorm*self.cwdata.num_dorms
 
         # indices for easy access the variables
@@ -336,12 +335,21 @@ class CWModel:
         else:
             return mat
 
-    def fit(self, max_iter=100, inlier_pct=1.0):
+    def fit(self,
+            max_iter=100,
+            outer_max_iter=100,
+            outer_step_size=1.0,
+            inlier_pct=1.0):
         """Optimize the model parameters.
         This is a interface to limetr.
         Args:
             max_iter (int, optional):
                 Maximum number of iterations.
+            outer_max_iter (int, optional):
+                Outer maximum number of iterations.
+            outer_step_size (float, optional):
+                Step size of the trimming problem, the larger the step size the faster it will converge,
+                and the less quality of trimming it will guarantee.
             inlier_pct (float, optional):
                 How much percentage of the data do you trust.
         """
@@ -396,7 +404,9 @@ class CWModel:
                     c=cvec,
                     inlier_percentage=inlier_pct)
         self.beta, self.gamma, self.w = self.lt.fitModel(inner_print_level=5,
-                                                         inner_max_iter=max_iter)
+                                                         inner_max_iter=max_iter,
+                                                         outer_max_iter=outer_max_iter,
+                                                         outer_step_size=outer_step_size)
 
         self.fixed_vars = {
             var: self.beta[self.var_idx[var]]
