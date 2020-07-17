@@ -190,7 +190,9 @@ class CWModel:
         self.relation_mat = self.create_relation_mat()
         self._check_relation_mat()
         self.cov_mat = self.create_cov_mat()
+        self._assert_covs_independent()
         self.design_mat = self.create_design_mat()
+        self._assert_rank_efficient()
         self.constraint_mat = self.create_constraint_mat()
 
         # place holder for the solutions
@@ -212,6 +214,24 @@ class CWModel:
         assert self.gold_dorm in self.cwdata.unique_dorms
 
         assert self.order_prior is None or isinstance(self.order_prior, list)
+
+    def _assert_covs_independent(self):
+        """Check if the covariates are independent.
+        """
+        rank = np.linalg.matrix_rank(self.cov_mat)
+        if rank < self.cov_mat.shape[1]:
+            raise ValueError("Covariates are collinear, that is, some covariate column is a linear combination of "
+                             "some of the other columns. Please check them carefully.")
+
+    def _assert_rank_efficient(self):
+        """Check the rank of the design matrix.
+        """
+        rank = np.linalg.matrix_rank(self.design_mat)
+        num_unknowns = self.num_vars_per_dorm*(self.cwdata.num_dorms - 1)
+        if rank < num_unknowns:
+            raise ValueError(f"Not enough information in the data to recover parameters."
+                             f"Number of effective data points is {rank} and number of unknowns is {num_unknowns}."
+                             f"Please include more effective data or reduce the number of covariates.")
 
     def create_relation_mat(self, cwdata=None):
         """Creating relation matrix.
