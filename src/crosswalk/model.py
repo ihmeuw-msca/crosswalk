@@ -516,7 +516,8 @@ class CWModel:
                          orig_vals_mean,
                          orig_vals_se,
                          study_id=None,
-                         data_id=None):
+                         data_id=None,
+                         ref_dorms=None):
         """Adjust alternative values.
 
         Args:
@@ -534,14 +535,18 @@ class CWModel:
                 If not `None`, predict with the random effects.
             data_id (str | None, optional):
                 If `None` create data_id by the integer sequence.
+            ref_dorms (str, optional):
+                Name of the column with reference dorms, if is ``None``, use the
+                gold_dorm as the reference dorm. Default to ``None``.
 
         Returns:
             pandas.DataFrame:
                 The adjusted values and standard deviations.
         """
         df_copy = df.copy()
-        ref_dorms = 'ref_dorms'
-        df_copy[ref_dorms] = np.array([self.gold_dorm]*df_copy.shape[0])
+        if ref_dorms is None:
+            ref_dorms = 'ref_dorms'
+            df_copy[ref_dorms] = np.array([self.gold_dorm]*df_copy.shape[0])
         if 'intercept' not in df_copy.columns:
             df_copy['intercept'] = np.ones(df_copy.shape[0])
         new_cwdata = data.CWData(df_copy,
