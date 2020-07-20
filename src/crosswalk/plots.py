@@ -100,7 +100,7 @@ def dose_response_curve(dose_variable, obs_method,
         
     # if it's continuous variable, take median 
     for var in continuous_variables:
-        pred_df[var] = np.median(cwdata.get_covs(var))
+        pred_df[var] = np.median(cwdata.covs[var])
 
     # predict for line
     pred_df[dose_variable] = dose_grid
