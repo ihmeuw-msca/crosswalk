@@ -257,8 +257,9 @@ def dose_response_curve(dose_variable, obs_method,
 
 
 def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None, 
-                continuous_variables=[], plots_dir=None, file_name='funnel_plot', 
-                plot_note=None, include_bias=False, write_file=False):
+                continuous_variables=[], binary_variables={}, plots_dir=None, 
+                file_name='funnel_plot', plot_note=None, include_bias=False, 
+                write_file=False):
     """Funnel Plot.
     Args:
         obs_method (str):
@@ -269,6 +270,10 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
             Fitted CrossWalk model object.
         continuous_variables (list):
             List of continuous covariate names.
+        binary_variables (dict):
+            A dictionary to specify the values for binary variables.
+            Options for values: 'median', 'mean', or certain value
+            Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
         plots_dir (str):
             Directory where to save the plot.
         file_name (str):
@@ -315,6 +320,17 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     for var in continuous_variables:
         pred_df[var] = np.median(cwdata.covs[var])
     
+    # if binary_variables specified, process binary variables accordingly
+    if binary_variables:
+        for var in binary_variables.keys():
+            value = binary_variables.get(var)
+            if value == 'mean':
+                pred_df[var] = np.mean(data_df[var])
+            elif value == 'median':
+                pred_df[var] = np.median(data_df[var])
+            else:
+                pred_df[var] = value
+
     # predict effect
     y_pred = cwmodel.adjust_orig_vals(
         df=pred_df, 
