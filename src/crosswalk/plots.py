@@ -7,7 +7,8 @@ from . import utils
 
 
 def dose_response_curve(dose_variable, obs_method,
-                        continuous_variables=[], 
+                        continuous_variables=[],
+                        binary_variables={}, 
                         plots_dir=None, cwdata=None, cwmodel=None,
                         file_name='dose_response_plot',
                         from_zero=False, include_bias=False,
@@ -20,6 +21,10 @@ def dose_response_curve(dose_variable, obs_method,
             Alternative definition or method intended to be plotted.
         continuous_variables (list):
             List of continuous covariate names.
+        binary_variables (dict):
+            A dictionary to specify the values for binary variables.
+            Options for values: 'median', 'mean', or certain value
+            Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
         plots_dir (str):
             Directory where to save the plot.
         cwdata (CWData object):
@@ -41,13 +46,24 @@ def dose_response_curve(dose_variable, obs_method,
             If True, `plots_dir` should be specified too.
 
     """ 
+    # All covariates in cwmodel should be specified.
+    cwmodel_covs = [cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))]
+    specified_covs = [dose_variable] + continuous_variables + \
+    list(binary_variables.keys()) + ['intercept']
+    assert set(cwmodel_covs) == set(specified_covs), \
+    "All covariates in cwmodel should be specified in " \
+    "dose_variable or continuous_variables or binary_variables!"
+
     data_df = pd.DataFrame({'y': cwdata.df[cwdata.col_obs].values, 
                             'se': cwdata.df[cwdata.col_obs_se].values, 
                             'w': cwmodel.lt.w, f"{dose_variable}": cwdata.df[dose_variable], 
                             "obs_method": np.ravel(cwdata.alt_dorms), 
                             "dorm_alt": cwdata.df[cwdata.col_alt_dorms].values, 
                             "dorm_ref": cwdata.df[cwdata.col_ref_dorms].values})
-    
+
+    for var in cwdata.col_covs:
+        data_df[var] = cwdata.df[var]
+
     # drop dose variable
     continuous_variables = [v for v in continuous_variables if v != dose_variable]
     cov_idx = {} # dictionary of cov_model name with corresponding index
@@ -102,6 +118,17 @@ def dose_response_curve(dose_variable, obs_method,
     for var in continuous_variables:
         pred_df[var] = np.median(cwdata.covs[var])
 
+    # if binary_variables specified, process binary variables
+    if binary_variables:
+        for var in binary_variables.keys():
+            value = binary_variables.get(var)
+            if value == 'mean':
+                pred_df[var] = np.mean(data_df[var])
+            elif value == 'median':
+                pred_df[var] = np.median(data_df[var])
+            else:
+                pred_df[var] = value
+
     # predict for line
     pred_df[dose_variable] = dose_grid
     pred_df['obs_method'] = obs_method
@@ -128,6 +155,7 @@ def dose_response_curve(dose_variable, obs_method,
     data_df['intercept'] = 1
     data_df['prev'] = 0.1
     data_df['prev_se'] = 0.1
+
     data_pred = cwmodel.adjust_orig_vals(       
           df=data_df,            
           orig_dorms = "obs_method", 
@@ -229,8 +257,9 @@ def dose_response_curve(dose_variable, obs_method,
 
 
 def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None, 
-                continuous_variables=[], plots_dir=None, file_name='funnel_plot', 
-                plot_note=None, include_bias=False, write_file=False):
+                continuous_variables=[], binary_variables={}, plots_dir=None, 
+                file_name='funnel_plot', plot_note=None, include_bias=False, 
+                write_file=False):
     """Funnel Plot.
     Args:
         obs_method (str):
@@ -241,6 +270,10 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
             Fitted CrossWalk model object.
         continuous_variables (list):
             List of continuous covariate names.
+        binary_variables (dict):
+            A dictionary to specify the values for binary variables.
+            Options for values: 'median', 'mean', or certain value
+            Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
         plots_dir (str):
             Directory where to save the plot.
         file_name (str):
@@ -287,6 +320,17 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
     for var in continuous_variables:
         pred_df[var] = np.median(cwdata.covs[var])
     
+    # if binary_variables specified, process binary variables accordingly
+    if binary_variables:
+        for var in binary_variables.keys():
+            value = binary_variables.get(var)
+            if value == 'mean':
+                pred_df[var] = np.mean(data_df[var])
+            elif value == 'median':
+                pred_df[var] = np.median(data_df[var])
+            else:
+                pred_df[var] = value
+
     # predict effect
     y_pred = cwmodel.adjust_orig_vals(
         df=pred_df, 
