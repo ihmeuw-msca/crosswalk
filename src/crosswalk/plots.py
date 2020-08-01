@@ -340,6 +340,8 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
         ).to_numpy()
     y_pred = np.ravel(y_pred)
     y_mean, y_sd = y_pred[2], y_pred[3]
+    # Include random effects
+    y_sd = np.sqrt(y_sd**2 + cwmodel.gamma[0]**2)
     
     # Statistics in title 
     y_lower, y_upper = y_mean - 1.96*y_sd, y_mean + 1.96*y_sd
