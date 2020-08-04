@@ -200,6 +200,8 @@ class CWModel:
 
         # gamma bounds
         self.gamma_bound = np.array([0.0, np.inf]) if gamma_bound is None else np.array(gamma_bound)
+        if self.use_random_intercept:
+            self.gamma_bound = np.zeros(2)
 
         # place holder for the solutions
         self.beta = None
@@ -393,10 +395,7 @@ class CWModel:
         uprior = np.array([[-np.inf]*self.num_vars,
                            [np.inf]*self.num_vars])
         uprior[:, self.var_idx[self.gold_dorm]] = 0.0
-        if self.use_random_intercept:
-            uprior = np.hstack((uprior, self.gamma_bound[:, None]))
-        else:
-            uprior = np.hstack((uprior, np.array([[0.0], [0.0]])))
+        uprior = np.hstack((uprior, self.gamma_bound[:, None]))
 
         if self.constraint_mat is None:
             cfun = None
