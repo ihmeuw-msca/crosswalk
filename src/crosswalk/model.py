@@ -122,7 +122,8 @@ class CWModel:
                  cov_models=None,
                  gold_dorm=None,
                  order_prior=None,
-                 use_random_intercept=True):
+                 use_random_intercept=True,
+                 gamma_bound=None):
         """Constructor of CWModel.
         Args:
             cwdata (data.CWData):
@@ -138,6 +139,8 @@ class CWModel:
                 Order priors between different definitions.
             use_random_intercept (bool, optional):
                 If ``True``, use random intercept.
+            gamma_bound (Tuple[float, float], optional):
+                If not ``None``, use it as the bound of gamma.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
@@ -194,6 +197,9 @@ class CWModel:
         self.design_mat = self.create_design_mat()
         self._assert_rank_efficient()
         self.constraint_mat = self.create_constraint_mat()
+
+        # gamma bounds
+        self.gamma_bound = np.array([0.0, np.inf]) if gamma_bound is None else np.array(gamma_bound)
 
         # place holder for the solutions
         self.beta = None
@@ -388,7 +394,7 @@ class CWModel:
                            [np.inf]*self.num_vars])
         uprior[:, self.var_idx[self.gold_dorm]] = 0.0
         if self.use_random_intercept:
-            uprior = np.hstack((uprior, np.array([[0.0], [np.inf]])))
+            uprior = np.hstack((uprior, self.gamma_bound[:, None]))
         else:
             uprior = np.hstack((uprior, np.array([[0.0], [0.0]])))
 
