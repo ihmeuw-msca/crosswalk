@@ -200,7 +200,7 @@ class CWModel:
 
         # gamma bounds
         self.gamma_bound = np.array([0.0, np.inf]) if gamma_bound is None else np.array(gamma_bound)
-        if self.use_random_intercept:
+        if not self.use_random_intercept:
             self.gamma_bound = np.zeros(2)
 
         # place holder for the solutions
