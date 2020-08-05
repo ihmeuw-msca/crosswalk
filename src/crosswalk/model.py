@@ -123,7 +123,7 @@ class CWModel:
                  gold_dorm=None,
                  order_prior=None,
                  use_random_intercept=True,
-                 gamma_bound=None):
+                 prior_gamma_uniform=None):
         """Constructor of CWModel.
         Args:
             cwdata (data.CWData):
@@ -139,7 +139,7 @@ class CWModel:
                 Order priors between different definitions.
             use_random_intercept (bool, optional):
                 If ``True``, use random intercept.
-            gamma_bound (Tuple[float, float], optional):
+            prior_gamma_uniform (Tuple[float, float], optional):
                 If not ``None``, use it as the bound of gamma.
         """
         self.cwdata = cwdata
@@ -199,9 +199,12 @@ class CWModel:
         self.constraint_mat = self.create_constraint_mat()
 
         # gamma bounds
-        self.gamma_bound = np.array([0.0, np.inf]) if gamma_bound is None else np.array(gamma_bound)
+        self.prior_gamma_uniform = np.array([0.0, np.inf]) if prior_gamma_uniform is None else np.array(prior_gamma_uniform)
         if not self.use_random_intercept:
-            self.gamma_bound = np.zeros(2)
+            self.prior_gamma_uniform = np.zeros(2)
+        if self.prior_gamma_uniform[0] < 0.0:
+            warnings.warn("Lower bound of gamma has to be non-negative, reset it to zero.")
+            self.prior_gamma_uniform[0] = 0.0
 
         # place holder for the solutions
         self.beta = None
@@ -395,7 +398,7 @@ class CWModel:
         uprior = np.array([[-np.inf]*self.num_vars,
                            [np.inf]*self.num_vars])
         uprior[:, self.var_idx[self.gold_dorm]] = 0.0
-        uprior = np.hstack((uprior, self.gamma_bound[:, None]))
+        uprior = np.hstack((uprior, self.prior_gamma_uniform[:, None]))
 
         if self.constraint_mat is None:
             cfun = None
