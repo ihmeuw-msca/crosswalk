@@ -578,7 +578,7 @@ class CWModel:
         # calculate the random effects
         if study_id is not None:
             random_effects = np.array([
-                self.random_vars[sid]
+                self.random_vars[sid][0]
                 if sid in self.random_vars else 0.0
                 for sid in df[study_id]
             ])
@@ -611,7 +611,6 @@ class CWModel:
             pred_diff_mean - random_effects
         transformed_ref_vals_sd = np.sqrt(transformed_orig_vals_se**2 +
                                           pred_diff_sd**2 + self.gamma[0]**2)
-
         if self.obs_type == 'diff_log':
             ref_vals_mean,\
             ref_vals_sd = utils.log_to_linear(transformed_ref_vals_mean,
