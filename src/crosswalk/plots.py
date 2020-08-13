@@ -103,7 +103,7 @@ def dose_response_curve(dose_variable, obs_method,
 
     # construct dataframe for prediction
     cov_range = (max_cov - min_cov)
-    dose_grid = np.arange(min_cov, max_cov + cov_range * 0.01, cov_range / 100)
+    dose_grid = np.arange(min_cov, max_cov + cov_range * 0.001, cov_range / 1000)
 
     cols = cwdata.covs.columns
     if include_bias:
