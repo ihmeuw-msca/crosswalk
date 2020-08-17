@@ -60,6 +60,8 @@ def dose_response_curve(dose_variable, obs_method,
                             "obs_method": np.ravel(cwdata.alt_dorms), 
                             "dorm_alt": cwdata.df[cwdata.col_alt_dorms].values, 
                             "dorm_ref": cwdata.df[cwdata.col_ref_dorms].values})
+    if cwdata.dorm_separator is not None:
+        data_df['obs_method'] = data_df.obs_method.map(lambda x: cwdata.dorm_separator.join(x))
 
     for var in cwdata.col_covs:
         data_df[var] = cwdata.df[var]
