@@ -226,7 +226,7 @@ class CWModel:
         # beta bounds
         uprior = np.repeat(np.array([[-np.inf], [np.inf]]), self.num_vars, axis=1)
         for i, cov_model in enumerate(self.cov_models):
-            for dorm, prior in cov_model.prior_beta_uniform:
+            for dorm, prior in cov_model.prior_beta_uniform.items():
                 uprior[:, self.var_idx[dorm][i]] = prior
         uprior[:, self.var_idx[self.gold_dorm]] = 0.0
         self.prior_beta_uniform = uprior
@@ -234,7 +234,7 @@ class CWModel:
         # beta Gaussian prior
         gprior = np.repeat(np.array([[0.0], [np.inf]]), self.num_vars, axis=1)
         for i, cov_model in enumerate(self.cov_models):
-            for dorm, prior in cov_model.prior_beta_gaussian:
+            for dorm, prior in cov_model.prior_beta_gaussian.items():
                 gprior[:, self.var_idx[dorm][i]] = prior
         gprior[:, self.var_idx[self.gold_dorm]] = np.array([[0.0], [np.inf]])
         self.prior_beta_gaussian = gprior
