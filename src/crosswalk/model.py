@@ -22,7 +22,9 @@ class CovModel:
                  spline=None,
                  spline_monotonicity=None,
                  spline_convexity=None,
-                 soln_name=None):
+                 soln_name=None,
+                 prior_beta_uniform=None,
+                 prior_beta_gaussian=None):
         """Constructor of the CovModel.
 
         Args:
@@ -37,6 +39,11 @@ class CovModel:
                 Spline shape prior, indicate if spline is convex or concave.
             soln_name (str):
                 Name of the corresponding covariates multiplier.
+            prior_beta_uniform (dict | None, optional):
+                Uniform prior for beta, default to None. Otherwise should pass in
+                a dictionary with key as the dorm name and value as the uniform prior.
+            prior_beta_gaussian (dict | None, optional):
+                Same as the ``prior_beta_uniform``
         """
         # check the input
         assert isinstance(cov_name, str)
@@ -57,6 +64,8 @@ class CovModel:
                 self.spline_convexity is not None
         )
         self.soln_name = cov_name if soln_name is None else soln_name
+        self.prior_beta_uniform = {} if prior_beta_uniform is None else prior_beta_uniform
+        self.prior_beta_gaussian = {} if prior_beta_gaussian is None else prior_beta_gaussian
 
         if self.use_spline:
             self.num_vars = spline.num_spline_bases - 1
@@ -123,7 +132,8 @@ class CWModel:
                  gold_dorm=None,
                  order_prior=None,
                  use_random_intercept=True,
-                 prior_gamma_uniform=None):
+                 prior_gamma_uniform=None,
+                 prior_gamma_gaussian=None):
         """Constructor of CWModel.
         Args:
             cwdata (data.CWData):
@@ -141,6 +151,8 @@ class CWModel:
                 If ``True``, use random intercept.
             prior_gamma_uniform (Tuple[float, float], optional):
                 If not ``None``, use it as the bound of gamma.
+            prior_gamma_gaussian (Tuple[float, float], optional):
+                If not ``None``, use it as the gaussian prior of gamma.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
@@ -205,6 +217,27 @@ class CWModel:
         if self.prior_gamma_uniform[0] < 0.0:
             warnings.warn("Lower bound of gamma has to be non-negative, reset it to zero.")
             self.prior_gamma_uniform[0] = 0.0
+
+        # gamma Gaussian prior
+        self.prior_gamma_gaussian = np.array([0.0, np.inf]) if prior_gamma_gaussian is None else np.array(prior_gamma_gaussian)
+        if not self.use_random_intercept:
+            self.prior_gamma_gaussian = np.array([0.0, np.inf])
+
+        # beta bounds
+        uprior = np.repeat(np.array([[-np.inf], [np.inf]]), self.num_vars, axis=1)
+        for i, cov_model in enumerate(self.cov_models):
+            for dorm, prior in cov_model.prior_beta_uniform.items():
+                uprior[:, self.var_idx[dorm][i]] = prior
+        uprior[:, self.var_idx[self.gold_dorm]] = 0.0
+        self.prior_beta_uniform = uprior
+
+        # beta Gaussian prior
+        gprior = np.repeat(np.array([[0.0], [np.inf]]), self.num_vars, axis=1)
+        for i, cov_model in enumerate(self.cov_models):
+            for dorm, prior in cov_model.prior_beta_gaussian.items():
+                gprior[:, self.var_idx[dorm][i]] = prior
+        gprior[:, self.var_idx[self.gold_dorm]] = np.array([[0.0], [np.inf]])
+        self.prior_beta_gaussian = gprior
 
         # place holder for the solutions
         self.beta = None
@@ -395,10 +428,8 @@ class CWModel:
         x = self.design_mat
         z = np.ones((self.cwdata.num_obs, 1))
 
-        uprior = np.array([[-np.inf]*self.num_vars,
-                           [np.inf]*self.num_vars])
-        uprior[:, self.var_idx[self.gold_dorm]] = 0.0
-        uprior = np.hstack((uprior, self.prior_gamma_uniform[:, None]))
+        uprior = np.hstack((self.prior_beta_uniform, self.prior_gamma_uniform[:, None]))
+        gprior = np.hstack((self.prior_beta_gaussian, self.prior_gamma_gaussian[:, None]))
 
         if self.constraint_mat is None:
             cfun = None
@@ -425,12 +456,13 @@ class CWModel:
             return x
 
         self.lt = LimeTr(n, k_beta, k_gamma, y, fun, jfun, z,
-                    S=s,
-                    uprior=uprior,
-                    C=cfun,
-                    JC=jcfun,
-                    c=cvec,
-                    inlier_percentage=inlier_pct)
+                         S=s,
+                         gprior=gprior,
+                         uprior=uprior,
+                         C=cfun,
+                         JC=jcfun,
+                         c=cvec,
+                         inlier_percentage=inlier_pct)
         self.beta, self.gamma, self.w = self.lt.fitModel(inner_print_level=5,
                                                          inner_max_iter=max_iter,
                                                          outer_max_iter=outer_max_iter,
