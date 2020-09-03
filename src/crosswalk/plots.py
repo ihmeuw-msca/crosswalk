@@ -256,6 +256,7 @@ def dose_response_curve(dose_variable, obs_method,
         print(f"Dose response plot saved at {outfile}")
     else:
         plt.show()
+    plt.close()
 
 
 def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None, 
@@ -400,4 +401,4 @@ def funnel_plot(obs_method='Self-reported', cwdata=None, cwmodel=None,
         print(f"Funnel plot saved at {outfile}")
     else:
         plt.show()
-    plt.clf()
+    plt.close()
