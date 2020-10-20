@@ -5,6 +5,7 @@
 
     `model` module of the `crosswalk` package.
 """
+from typing import List
 import warnings
 import numpy as np
 import pandas as pd
@@ -121,6 +122,9 @@ class CovModel:
                              sign*self.spline.design_dmat(points, 2)[:, 1:]))
 
         return mat
+
+    def __repr__(self) -> str:
+        return f"CovModel({self.cov_name})"
 
 
 class CWModel:
@@ -482,6 +486,19 @@ class CWModel:
             self.random_vars = dict()
 
         # compute the posterior distribution of beta
+        hessian = self.get_beta_hessian()
+        unconstrained_id = np.hstack([
+            np.arange(self.lt.k_beta)[self.var_idx[dorm]]
+            for dorm in self.cwdata.unique_dorms
+            if dorm != self.gold_dorm
+        ])
+        self.beta_sd = np.zeros(self.lt.k_beta)
+        self.beta_sd[unconstrained_id] = np.sqrt(np.diag(
+            np.linalg.inv(hessian)
+        ))
+
+    def get_beta_hessian(self) -> np.ndarray:
+        # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta)*np.sqrt(self.lt.w)[:, None]
         z = self.lt.Z*np.sqrt(self.lt.w)[:, None]
         v = limetr.utils.VarMat(self.lt.V**self.lt.w, z, self.lt.gamma, self.lt.n)
@@ -491,20 +508,21 @@ class CWModel:
         else:
             beta_gprior_sd = np.repeat(np.inf, self.lt.k_beta)
 
-        unconstrained_id = np.hstack([
-            np.arange(self.lt.k_beta)[self.var_idx[dorm]]
-            for dorm in self.cwdata.unique_dorms
-            if dorm != self.gold_dorm
-        ])
-
         hessian = x.T.dot(v.invDot(x)) + np.diag(1.0/beta_gprior_sd**2)
         hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=0)
         hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=1)
 
-        self.beta_sd = np.zeros(self.lt.k_beta)
-        self.beta_sd[unconstrained_id] = np.sqrt(np.diag(
-            np.linalg.inv(hessian)
-        ))
+        return hessian
+
+    def get_cov_names(self) -> List[str]:
+        # column of covariate name
+        cov_names = []
+        for model in self.cov_models:
+            if model.spline is None:
+                cov_names.append(model.cov_name)
+            else:
+                cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
+        return cov_names
 
     def create_result_df(self) -> pd.DataFrame:
         """Create result data frame.
@@ -514,13 +532,7 @@ class CWModel:
         """
         # column of dorms
         dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
-        # column of covariate name
-        cov_names = []
-        for model in self.cov_models:
-            if model.spline is None:
-                cov_names.append(model.cov_name)
-            else:
-                cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
+        cov_names = self.get_cov_names()
         cov_names *= self.cwdata.num_dorms
 
         # create data frame
