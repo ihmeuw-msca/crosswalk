@@ -5,15 +5,16 @@
 
     `model` module of the `crosswalk` package.
 """
-from typing import List
 import warnings
+from typing import List
+
+import limetr
 import numpy as np
 import pandas as pd
-import limetr
 from limetr import LimeTr
 from xspline import XSpline
-from . import data
-from . import utils
+
+from . import data, utils
 
 
 class CovModel:
@@ -650,7 +651,7 @@ class CWModel:
 
         pred_diff_mean = new_design_mat.dot(self.beta)
         pred_diff_sd = np.sqrt(np.array([
-            (new_design_mat[i]**2).dot(self.beta_sd**2) + self.gamma[0]**2
+            (new_design_mat[i]**2).dot(self.beta_sd**2) + self.gamma[0]
             if dorm != self.gold_dorm else 0.0
             for i, dorm in enumerate(df[orig_dorms])
         ]))
