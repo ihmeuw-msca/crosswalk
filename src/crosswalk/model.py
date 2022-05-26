@@ -19,6 +19,7 @@ from . import utils
 class CovModel:
     """Covariate model.
     """
+
     def __init__(self, cov_name,
                  spline=None,
                  spline_monotonicity=None,
@@ -61,8 +62,8 @@ class CovModel:
         self.spline_convexity = spline_convexity
         self.use_spline = spline is not None
         self.use_constraints = self.use_spline and (
-                self.spline_monotonicity is not None or
-                self.spline_convexity is not None
+            self.spline_monotonicity is not None or
+            self.spline_convexity is not None
         )
         self.soln_name = cov_name if soln_name is None else soln_name
         self.prior_beta_uniform = {} if prior_beta_uniform is None else prior_beta_uniform
@@ -130,6 +131,7 @@ class CovModel:
 class CWModel:
     """Cross Walk model.
     """
+
     def __init__(self, cwdata,
                  obs_type='diff_log',
                  cov_models=None,
@@ -215,7 +217,8 @@ class CWModel:
         self.constraint_mat = self.create_constraint_mat()
 
         # gamma bounds
-        self.prior_gamma_uniform = np.array([0.0, np.inf]) if prior_gamma_uniform is None else np.array(prior_gamma_uniform)
+        self.prior_gamma_uniform = np.array(
+            [0.0, np.inf]) if prior_gamma_uniform is None else np.array(prior_gamma_uniform)
         if not self.use_random_intercept:
             self.prior_gamma_uniform = np.zeros(2)
         if self.prior_gamma_uniform[0] < 0.0:
@@ -223,7 +226,8 @@ class CWModel:
             self.prior_gamma_uniform[0] = 0.0
 
         # gamma Gaussian prior
-        self.prior_gamma_gaussian = np.array([0.0, np.inf]) if prior_gamma_gaussian is None else np.array(prior_gamma_gaussian)
+        self.prior_gamma_gaussian = np.array(
+            [0.0, np.inf]) if prior_gamma_gaussian is None else np.array(prior_gamma_gaussian)
         if not self.use_random_intercept:
             self.prior_gamma_gaussian = np.array([0.0, np.inf])
 
@@ -360,7 +364,7 @@ class CWModel:
         relation_mat = utils.default_input(relation_mat,
                                            default=self.relation_mat)
         cov_mat = utils.default_input(cov_mat,
-                                           default=self.cov_mat)
+                                      default=self.cov_mat)
 
         mat = (
             relation_mat.ravel()[:, None] *
@@ -633,20 +637,20 @@ class CWModel:
         # compute the corresponding gold_dorm value
         if self.obs_type == 'diff_log':
             transformed_orig_vals_mean,\
-            transformed_orig_vals_se = utils.linear_to_log(
-                df[orig_vals_mean].values,
-                df[orig_vals_se].values
-            )
+                transformed_orig_vals_se = utils.linear_to_log(
+                    df[orig_vals_mean].values,
+                    df[orig_vals_se].values
+                )
         else:
             transformed_orig_vals_mean, \
-            transformed_orig_vals_se = utils.linear_to_logit(
-                df[orig_vals_mean].values,
-                df[orig_vals_se].values
-            )
+                transformed_orig_vals_se = utils.linear_to_logit(
+                    df[orig_vals_mean].values,
+                    df[orig_vals_se].values
+                )
 
         pred_diff_mean = new_design_mat.dot(self.beta)
         pred_diff_sd = np.sqrt(np.array([
-            (new_design_mat[i]**2).dot(self.beta_sd**2)
+            (new_design_mat[i]**2).dot(self.beta_sd**2) + self.gamma[0]**2
             if dorm != self.gold_dorm else 0.0
             for i, dorm in enumerate(df[orig_dorms])
         ]))
@@ -654,15 +658,15 @@ class CWModel:
         transformed_ref_vals_mean = transformed_orig_vals_mean - \
             pred_diff_mean - random_effects
         transformed_ref_vals_sd = np.sqrt(transformed_orig_vals_se**2 +
-                                          pred_diff_sd**2 + self.gamma[0]**2)
+                                          pred_diff_sd**2)
         if self.obs_type == 'diff_log':
             ref_vals_mean,\
-            ref_vals_sd = utils.log_to_linear(transformed_ref_vals_mean,
-                                              transformed_ref_vals_sd)
+                ref_vals_sd = utils.log_to_linear(transformed_ref_vals_mean,
+                                                  transformed_ref_vals_sd)
         else:
             ref_vals_mean,\
-            ref_vals_sd = utils.logit_to_linear(transformed_ref_vals_mean,
-                                                transformed_ref_vals_sd)
+                ref_vals_sd = utils.logit_to_linear(transformed_ref_vals_mean,
+                                                    transformed_ref_vals_sd)
 
         pred_df = pd.DataFrame({
             'ref_vals_mean': ref_vals_mean,
