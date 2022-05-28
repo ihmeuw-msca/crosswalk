@@ -274,7 +274,9 @@ class CWModel:
         rank = np.linalg.matrix_rank(self.cov_mat)
         if rank < self.cov_mat.shape[1]:
             raise ValueError("Covariates are collinear, that is, some covariate column is a linear combination of "
-                             "some of the other columns. Please check them carefully.")
+                             "some of the other columns. Please check them carefully. Check the reference: "
+                             "https://en.wikipedia.org/wiki/Multicollinearity and "
+                             "https://ihmeuw-msca.github.io/troubleshooting.html#what-does-this-error-message-mean")
 
     def _assert_rank_efficient(self):
         """Check the rank of the design matrix.
