@@ -651,15 +651,20 @@ class CWModel:
 
         pred_diff_mean = new_design_mat.dot(self.beta)
         pred_diff_sd = np.sqrt(np.array([
-            (new_design_mat[i]**2).dot(self.beta_sd**2) + self.gamma[0]
+            (new_design_mat[i]**2).dot(self.beta_sd**2)
             if dorm != self.gold_dorm else 0.0
             for i, dorm in enumerate(df[orig_dorms])
         ]))
+        gamma = np.array([
+            self.gamma[0]
+            if dorm != self.gold_dorm else 0.0
+            for dorm in df[orig_dorms]
+        ])
 
         transformed_ref_vals_mean = transformed_orig_vals_mean - \
             pred_diff_mean - random_effects
         transformed_ref_vals_sd = np.sqrt(transformed_orig_vals_se**2 +
-                                          pred_diff_sd**2)
+                                          pred_diff_sd**2 + gamma)
         if self.obs_type == 'diff_log':
             ref_vals_mean,\
                 ref_vals_sd = utils.log_to_linear(transformed_ref_vals_mean,
