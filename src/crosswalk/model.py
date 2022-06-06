@@ -80,7 +80,7 @@ class CovModel:
         self.prior_beta_gaussian = {} if prior_beta_gaussian is None else prior_beta_gaussian
 
         if self.use_spline:
-            self.num_vars = self.spline.num_spline_bases - 1
+            self.num_vars = self.spline.num_spline_bases
         else:
             self.num_vars = 1
 
@@ -92,7 +92,7 @@ class CovModel:
         df
             The data frame contains the corresponding data column.
         """
-        if isinstance(self.spline, SplineGetter):
+        if self.use_spline and isinstance(self.spline, SplineGetter):
             col = df[self.cov_name].to_numpy()
             self.spline = self.spline.get_spline(col)
 
@@ -200,7 +200,7 @@ class CWModel:
 
         # attach data
         for cov_model in self.cov_models:
-            cov_model.attach(self.cwdata)
+            cov_model.attach(self.cwdata.df)
 
         # create function for prediction
         if self.obs_type == 'diff_log':

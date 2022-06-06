@@ -17,5 +17,6 @@ setup(name='crosswalk',
                         'pytest',
                         'ipopt',
                         'limetr',
-                        'xspline'],
+                        'xspline',
+                        'anml'],
       zip_safe=False)
