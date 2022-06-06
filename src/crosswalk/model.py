@@ -60,7 +60,7 @@ class CovModel:
                 degree=2,
                 l_linear=False,
                 r_linear=False,
-                include_first_basis=True,
+                include_first_basis=False,
                 knots_type="rel_freq",
             ),
             **spline_settings
@@ -111,7 +111,7 @@ class CovModel:
             "Unkown covariates, not appear in the data."
         cov = cwdata.covs[self.cov_name].values
         if self.use_spline:
-            mat = self.spline.design_mat(cov)[:, 1:]
+            mat = self.spline.design_mat(cov)
         else:
             mat = cov[:, None]
         return mat
@@ -154,7 +154,8 @@ class CWModel:
     """Cross Walk model.
     """
 
-    def __init__(self, cwdata,
+    def __init__(self,
+                 cwdata,
                  obs_type='diff_log',
                  cov_models=None,
                  gold_dorm=None,
@@ -196,6 +197,10 @@ class CWModel:
 
         # check input
         self.check()
+
+        # attach data
+        for cov_model in self.cov_models:
+            cov_model.attach(self.cwdata)
 
         # create function for prediction
         if self.obs_type == 'diff_log':
