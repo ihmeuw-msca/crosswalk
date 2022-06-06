@@ -1,18 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-    model
-    ~~~~~
-
-    `model` module of the `crosswalk` package.
-"""
 import warnings
-from typing import List
+from typing import Dict, List, Optional
 
 import limetr
 import numpy as np
 import pandas as pd
+from anml.getter.spline import SplineGetter
 from limetr import LimeTr
-from xspline import XSpline
+from pandas import DataFrame
 
 from . import data, utils
 
@@ -21,8 +15,10 @@ class CovModel:
     """Covariate model.
     """
 
-    def __init__(self, cov_name,
-                 spline=None,
+    def __init__(self,
+                 cov_name,
+                 use_spline: bool = False,
+                 spline_settings: Optional[Dict] = None,
                  spline_monotonicity=None,
                  spline_convexity=None,
                  soln_name=None,
@@ -50,18 +46,31 @@ class CovModel:
         """
         # check the input
         assert isinstance(cov_name, str)
-        assert isinstance(spline, XSpline) or spline is None
         if spline_monotonicity is not None:
             assert spline_monotonicity in ['increasing', 'decreasing']
         if spline_convexity is not None:
             assert spline_convexity in ['convex', 'concave']
         assert isinstance(soln_name, str) or soln_name is None
 
+        if spline_settings is None:
+            spline_settings = {}
+        spline_settings = {
+            **dict(
+                knots=np.linspace(0.0, 1.0, 5),
+                degree=2,
+                l_linear=False,
+                r_linear=False,
+                include_first_basis=True,
+                knots_type="rel_freq",
+            ),
+            **spline_settings
+        }
+
         self.cov_name = cov_name
-        self.spline = spline
+        self.spline = SplineGetter(**spline_settings)
         self.spline_monotonicity = spline_monotonicity
         self.spline_convexity = spline_convexity
-        self.use_spline = spline is not None
+        self.use_spline = use_spline
         self.use_constraints = self.use_spline and (
             self.spline_monotonicity is not None or
             self.spline_convexity is not None
@@ -71,9 +80,21 @@ class CovModel:
         self.prior_beta_gaussian = {} if prior_beta_gaussian is None else prior_beta_gaussian
 
         if self.use_spline:
-            self.num_vars = spline.num_spline_bases - 1
+            self.num_vars = self.spline.num_spline_bases - 1
         else:
             self.num_vars = 1
+
+    def attach(self, df: DataFrame):
+        """Attach the data to variable. It will attach data to the component.
+        And create spline and priors if necessary.
+        Parameters
+        ----------
+        df
+            The data frame contains the corresponding data column.
+        """
+        if isinstance(self.spline, SplineGetter):
+            col = df[self.cov_name].to_numpy()
+            self.spline = self.spline.get_spline(col)
 
     def create_design_mat(self, cwdata):
         """Create design matrix.
