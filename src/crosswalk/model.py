@@ -13,37 +13,40 @@ from . import data, utils
 
 class CovModel:
     """Covariate model.
+
+    Parameters
+    ----------
+    cov_name
+        Corresponding covariate name.
+    spline_settings
+        A dictionary contains all settings of the spline, default to be `None`.
+        When it is `None` it will use the default spline settings (5 knots
+        determined by the frequency of the data, degree 2, no left and right
+        linear tail, no intercept)
+    spline_monotonicity
+        Spline shape prior, indicate if spline is increasing or
+        decreasing.
+    spline_convexity
+        Spline shape prior, indicate if spline is convex or concave.
+    soln_name
+        Name of the corresponding covariates multiplier.
+    prior_beta_uniform
+        Uniform prior for beta, default to None. Otherwise should pass in
+        a dictionary with key as the dorm name and value as the uniform prior.
+    prior_beta_gaussian
+        Same as the `prior_beta_uniform`.
+
     """
 
     def __init__(self,
-                 cov_name,
+                 cov_name: str,
                  use_spline: bool = False,
                  spline_settings: Optional[Dict] = None,
-                 spline_monotonicity=None,
-                 spline_convexity=None,
-                 soln_name=None,
-                 prior_beta_uniform=None,
-                 prior_beta_gaussian=None):
-        """Constructor of the CovModel.
-
-        Args:
-            cov_name(str):
-                Corresponding covariate name.
-            spline (XSpline | None, optional):
-                If using spline, passing in spline object.
-            spline_monotonicity (str | None, optional):
-                Spline shape prior, indicate if spline is increasing or
-                decreasing.
-            spline_convexity (str | None, optional):
-                Spline shape prior, indicate if spline is convex or concave.
-            soln_name (str):
-                Name of the corresponding covariates multiplier.
-            prior_beta_uniform (dict | None, optional):
-                Uniform prior for beta, default to None. Otherwise should pass in
-                a dictionary with key as the dorm name and value as the uniform prior.
-            prior_beta_gaussian (dict | None, optional):
-                Same as the ``prior_beta_uniform``
-        """
+                 spline_monotonicity: Optional[str] = None,
+                 spline_convexity: Optional[str] = None,
+                 soln_name: Optional[str] = None,
+                 prior_beta_uniform: Optional[Dict] = None,
+                 prior_beta_gaussian: Optional[Dict] = None):
         # check the input
         assert isinstance(cov_name, str)
         if spline_monotonicity is not None:
