@@ -61,8 +61,8 @@ class CovModel:
             **dict(
                 knots=np.linspace(0.0, 1.0, 5),
                 degree=2,
-                l_linear=False,
-                r_linear=False,
+                l_linear=True,
+                r_linear=True,
                 include_first_basis=False,
                 knots_type="rel_freq",
             ),
