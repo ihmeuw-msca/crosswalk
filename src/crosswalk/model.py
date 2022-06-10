@@ -312,8 +312,9 @@ class CWModel:
         num_unknowns = self.num_vars_per_dorm*(self.cwdata.num_dorms - 1)
         if rank < num_unknowns:
             raise ValueError(f"Not enough information in the data to recover parameters."
-                             f"Number of effective data points is {rank} and number of unknowns is {num_unknowns}."
-                             f"Please include more effective data or reduce the number of covariates.")
+                             f"Number of effective data points is {rank} and number of unknown parameters is {num_unknowns}."
+                             f"To reduce the number of parameters, consider converting splines to linear fixed effects "
+			      f"or removing covariates entirely.")
 
     def create_relation_mat(self, cwdata=None):
         """Creating relation matrix.
