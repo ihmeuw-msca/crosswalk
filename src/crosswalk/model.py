@@ -556,7 +556,7 @@ class CWModel:
             pd.DataFrame: Random effects result data frame.
         """
         random_df = pd.DataFrame({
-            'name': ['gamma'] + self.cwdata.unique_study_iq.tolist(),
+            'name': ['gamma'] + self.cwdata.unique_study_id.tolist(),
             'value': self.lt.gamma.tolist() + self.lt.u.ravel().tolist()
         })
         return random_df
