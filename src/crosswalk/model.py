@@ -559,11 +559,11 @@ class CWModel:
                 cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
         return cov_names
 
-    def create_result_df(self) -> pd.DataFrame:
-        """Create result data frame.
+    def create_fixed_df(self) -> pd.DataFrame:
+        """Create fixed effects result data frame.
 
         Returns:
-            pd.DataFrame: Data frame that contains the result.
+            pd.DataFrame: Fixed effects result data frame.
         """
         # column of dorms
         dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
@@ -571,32 +571,32 @@ class CWModel:
         cov_names *= self.cwdata.num_dorms
 
         # create data frame
-        df = pd.DataFrame({
+        fixed_df = pd.DataFrame({
             'dorms': dorms,
             'cov_names': cov_names,
             'beta': self.beta,
             'beta_sd': self.beta_sd,
         })
-        if self.use_random_intercept:
-            gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
-            re = np.hstack((self.lt.u, np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan)))
-            df['gamma'] = gamma
-            for i, study_id in enumerate(self.cwdata.unique_study_id):
-                df[study_id] = re[i]
+        return fixed_df
 
-        return df
+    def create_random_df(self) -> pd.DataFrame:
+        """Create random effects result data frame.
 
-    def save_result_df(self, folder: str, filename: str = 'result.csv'):
-        """Save result.
-
-        Args:
-            folder (str): Path to the result folder.
-            filename (str): Name of the result. Default to `'result.csv'`.
+        Returns:
+            pd.DataFrame: Random effects result data frame.
         """
-        if not filename.endswith('.csv'):
-            filename += '.csv'
-        df = self.create_result_df()
-        df.to_csv(folder + '/' + filename, index=False)
+        gamma_df = pd.DataFrame({
+            'name': 'gamma',
+            'value': self.lt.gamma
+        })
+        if self.use_random_intercept:
+            int_df = pd.DataFrame({
+                'name': self.cwdata.unique_study_id,
+                'value': self.lt.u.ravel()
+            })
+            return pd.concat([gamma_df, int_df], ignore_index=True)
+        warnings.warn("Model does not have random intercepts.")
+        return gamma_df
 
     def adjust_orig_vals(self, df,
                          orig_dorms,
