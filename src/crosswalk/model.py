@@ -555,11 +555,18 @@ class CWModel:
         Returns:
             pd.DataFrame: Random effects result data frame.
         """
-        random_df = pd.DataFrame({
-            'name': ['gamma'] + self.cwdata.unique_study_id.tolist(),
-            'value': self.lt.gamma.tolist() + self.lt.u.ravel().tolist()
+        gamma_df = pd.DataFrame({
+            'name': 'gamma',
+            'value': self.lt.gamma
         })
-        return random_df
+        if self.use_random_intercept:
+            int_df = pd.DataFrame({
+                'name': self.cwdata.unique_study_id,
+                'value': self.lt.u.ravel()
+            })
+            return pd.concat([gamma_df, int_df], ignore_index=True)
+        warnings.warn("Model does not have random intercepts.")
+        return gamma_df
 
     def adjust_orig_vals(self, df,
                          orig_dorms,
