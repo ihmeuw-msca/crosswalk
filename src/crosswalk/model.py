@@ -532,6 +532,9 @@ class CWModel:
             np.linalg.inv(hessian)
         ))
 
+        # Print model summary
+        self.summary()
+
     def get_beta_hessian(self) -> np.ndarray:
         # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta)*np.sqrt(self.lt.w)[:, None]
@@ -559,8 +562,8 @@ class CWModel:
                 cov_names.extend([f'{model.cov_name}_spline_{i}' for i in range(model.num_vars)])
         return cov_names
 
-    def create_fixed_df(self) -> pd.DataFrame:
-        """Create fixed effects result data frame.
+    def get_fixed_df(self) -> pd.DataFrame:
+        """Get fixed effects result data frame.
 
         Returns:
             pd.DataFrame: Fixed effects result data frame.
@@ -572,31 +575,56 @@ class CWModel:
 
         # create data frame
         fixed_df = pd.DataFrame({
-            'dorms': dorms,
-            'cov_names': cov_names,
-            'beta': self.beta,
-            'beta_sd': self.beta_sd,
+            'dorm': dorms,
+            'name': cov_names,
+            'value': self.beta,
+            'sd': self.beta_sd,
         })
         return fixed_df
 
-    def create_random_df(self) -> pd.DataFrame:
-        """Create random effects result data frame.
+    def get_random_df(self) -> pd.DataFrame:
+        """Get random effects result data frame.
 
         Returns:
             pd.DataFrame: Random effects result data frame.
         """
         gamma_df = pd.DataFrame({
             'name': 'gamma',
-            'value': self.lt.gamma
+            'value': [None] if not hasattr(self, 'lt') else self.lt.gamma
         })
         if self.use_random_intercept:
             int_df = pd.DataFrame({
                 'name': self.cwdata.unique_study_id,
-                'value': self.lt.u.ravel()
+                'value': None if not hasattr(self, 'lt') else self.lt.u.ravel()
             })
             return pd.concat([gamma_df, int_df], ignore_index=True)
-        warnings.warn("Model does not have random intercepts.")
         return gamma_df
+
+    def get_AIC(self) -> float:
+        """Get Akaike information criterion.
+
+        The AIC is equal to 2*k - 2*log(L), where k is the
+        number of beta values (fixed-effect coefficients) plus the
+        number of gamma values (between-study heterogeneity standard
+        deviation), and L is the optimal marginal likelihood value
+        where the joint likelihood (fixed and random effects) has been
+        integrated with respect to u values (random intercepts).
+
+        Returns:
+            float: Akaike information criterion.
+        """
+        if hasattr(self, 'lt'):
+            return 2*(self.lt.k_total + self.lt.objective(self.lt.soln))
+        return None
+
+    def summary(self) -> None:
+        """Summarize CrossWalk model results.
+
+        Prints fixed effects, random effects, and AIC.
+        """
+        print('\nFixed effects:\n', self.get_fixed_df())
+        print('\nRandom effects:\n', self.get_random_df())
+        print('\nAIC:', self.get_AIC())
 
     def adjust_orig_vals(self, df,
                          orig_dorms,
