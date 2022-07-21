@@ -532,9 +532,6 @@ class CWModel:
             np.linalg.inv(hessian)
         ))
 
-        # Print model summary
-        self.summary()
-
     def get_beta_hessian(self) -> np.ndarray:
         # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta)*np.sqrt(self.lt.w)[:, None]
