@@ -614,8 +614,8 @@ class CWModel:
             return 2*(self.lt.k_total + self.lt.objective(self.lt.soln))
         return None
 
-    def summary(self) -> None:
-        """Summarize CrossWalk model results.
+    def print_summary(self) -> None:
+        """Print summary of CrossWalk model results.
 
         Prints fixed effects, random effects, and AIC.
         """
