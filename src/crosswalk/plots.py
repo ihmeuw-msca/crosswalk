@@ -54,14 +54,22 @@ def dose_response_curve(dose_variable, obs_method,
     "All covariates in cwmodel should be specified in " \
     "dose_variable or continuous_variables or binary_variables!"
 
+    # Modif Ariane: Join alt_dorms here to be able to use numpy ravel when creating the data frame
+    alt_dorms = cwdata.alt_dorms
+    formatted_alt_dorms = [cwdata.dorm_separator.join(x) for x in cwdata.alt_dorms]
+    cwdata.alt_dorms = formatted_alt_dorms
+
     data_df = pd.DataFrame({'y': cwdata.df[cwdata.col_obs].values, 
                             'se': cwdata.df[cwdata.col_obs_se].values, 
                             'w': cwmodel.lt.w, f"{dose_variable}": cwdata.df[dose_variable], 
                             "obs_method": np.ravel(cwdata.alt_dorms), 
                             "dorm_alt": cwdata.df[cwdata.col_alt_dorms].values, 
                             "dorm_ref": cwdata.df[cwdata.col_ref_dorms].values})
-    if cwdata.dorm_separator is not None:
-        data_df['obs_method'] = data_df.obs_method.map(lambda x: cwdata.dorm_separator.join(x))
+
+    # Modif Ariane: We put back the alt_dorms now that we have used numpy ravel
+#    if cwdata.dorm_separator is not None:
+#        data_df['obs_method'] = data_df.obs_method.map(lambda x: cwdata.dorm_separator.join(x))
+    cwdata.alt_dorms = alt_dorms
 
     for var in cwdata.col_covs:
         data_df[var] = cwdata.df[var]
