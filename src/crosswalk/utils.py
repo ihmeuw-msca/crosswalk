@@ -131,7 +131,7 @@ def log_to_linear(mean, sd):
     assert mean.size == sd.size
     assert (sd >= 0.0).all()
     linear_mean = np.exp(mean)
-    linear_sd = np.exp(mean)*sd
+    linear_sd = np.exp(mean) * sd
 
     return linear_mean, linear_sd
 
@@ -154,7 +154,7 @@ def linear_to_log(mean, sd):
     assert (mean > 0.0).all()
     assert (sd >= 0.0).all()
     log_mean = np.log(mean)
-    log_sd = sd/mean
+    log_sd = sd / mean
 
     return log_mean, log_sd
 
@@ -175,8 +175,8 @@ def logit_to_linear(mean, sd):
     """
     assert mean.size == sd.size
     assert (sd >= 0.0).all()
-    linear_mean = 1.0/(1.0 + np.exp(-mean))
-    linear_sd = (np.exp(mean)/(1.0 + np.exp(mean))**2)*sd
+    linear_mean = 1.0 / (1.0 + np.exp(-mean))
+    linear_sd = (np.exp(mean) / (1.0 + np.exp(mean)) ** 2) * sd
 
     return linear_mean, linear_sd
 
@@ -198,8 +198,8 @@ def linear_to_logit(mean, sd):
     assert mean.size == sd.size
     assert ((mean > 0.0) & (mean < 1.0)).all()
     assert (sd >= 0.0).all()
-    logit_mean = np.log(mean/(1.0 - mean))
-    logit_sd = sd/(mean*(1.0 - mean))
+    logit_mean = np.log(mean / (1.0 - mean))
+    logit_sd = sd / (mean * (1.0 - mean))
 
     return logit_mean, logit_sd
 
@@ -226,10 +226,12 @@ def flatten_list(my_list: List) -> List:
     return result
 
 
-def process_dorms(dorms: Union[str, None] = None,
-                  size: Union[int, None] = None,
-                  default_dorm: str = 'Unknown',
-                  dorm_separator: Union[str, None] = None) -> List[List[str]]:
+def process_dorms(
+    dorms: Union[str, None] = None,
+    size: Union[int, None] = None,
+    default_dorm: str = "Unknown",
+    dorm_separator: Union[str, None] = None,
+) -> List[List[str]]:
     """Process the dorms.
 
     Args:
@@ -249,7 +251,7 @@ def process_dorms(dorms: Union[str, None] = None,
     if dorms is None:
         if size is None:
             raise ValueError("Size cannot be None, when dorms is None.")
-        return [[default_dorm]]*size
+        return [[default_dorm]] * size
     else:
         return [dorm.split(dorm_separator) for dorm in dorms]
 
@@ -266,10 +268,10 @@ def p_value(mean: np.ndarray, std: np.ndarray, one_tailed: bool = False) -> np.n
         np.ndarray: An array of p-values.
     """
     assert all(std > 0.0), "Standard deviation has to be greater than zero."
-    if hasattr(mean, '__iter__') and hasattr(std, '__iter__'):
+    if hasattr(mean, "__iter__") and hasattr(std, "__iter__"):
         assert len(mean) == len(std), "Mean and standard deviation must have same size."
 
-    prob = norm.cdf(np.array(mean)/np.array(std))
+    prob = norm.cdf(np.array(mean) / np.array(std))
     pval = np.minimum(prob, 1 - prob)
     if not one_tailed:
         pval *= 2
