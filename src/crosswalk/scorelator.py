@@ -43,7 +43,7 @@ class Scorelator:
             score = self.wider_draw_lb if self.type == 'harmful' else -self.wider_draw_ub
         else:
             score = self.draw_lb if self.type == 'harmful' else -self.draw_ub
-        return score
+        return score*0.5
 
     def plot_model(self,
                    ax=None,
@@ -82,22 +82,21 @@ class Scorelator:
             ax.scatter(x, obs[index], s=2.0/data.obs_se[index], color='gray', alpha=0.5)
             ax.fill_between([lb, ub],
                             [self.draw_lb[beta_index], self.draw_lb[beta_index]],
-                            [self.draw_ub[beta_index], self.draw_ub[beta_index]], color='#69b3a2', alpha=0.2)
+                            [self.draw_ub[beta_index], self.draw_ub[beta_index]], color='#008080', alpha=0.2)
             ax.fill_between([lb, ub],
                             [self.wider_draw_lb[beta_index], self.wider_draw_lb[beta_index]],
                             [self.wider_draw_ub[beta_index], self.wider_draw_ub[beta_index]],
-                            color='#69b3a2', alpha=0.2)
+                            color='#008080', alpha=0.2)
 
-        ax.axhline(0.0, color='red', linestyle='--', linewidth=1.0)
+        ax.axhline(0.0, color='gray', linestyle='--', linewidth=1.0)
         title = self.name if title is None else title
         score = np.round(self.get_score(), 3)
         low_score = np.round(self.get_score(use_gamma_ub=True), 3)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(f"{title}: ref = {self.model.gold_dorm}\n"
-                     f"categories: {dorms}\n"
-                     f"low scores: {list(low_score[beta_sort_id])}\n"
-                     f"scores: {list(score[beta_sort_id])}", loc='left')
+                     f"detailed scores: {dict(zip(dorms, list(low_score[beta_sort_id])))}\n"
+                     f"overall score: {np.max(list(low_score[beta_sort_id]))}", loc='left')
         ax.set_xticks(np.arange(data.num_dorms - 1))
         ax.set_xticklabels(dorms)
 
