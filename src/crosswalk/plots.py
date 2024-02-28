@@ -70,7 +70,10 @@ def dose_response_curve(
     )
 
     # Modif Ariane: Join alt_dorms here to be able to use numpy ravel when creating the data frame
-    formatted_alt_dorms = [cwdata.dorm_separator.join(x) for x in cwdata.alt_dorms]
+    if cwdata.dorm_separator is not None:
+        formatted_alt_dorms = [cwdata.dorm_separator.join(x) for x in cwdata.alt_dorms]
+    else:
+        formatted_alt_dorms = cwdata.alt_dorms
 
     data_df = pd.DataFrame(
         {
