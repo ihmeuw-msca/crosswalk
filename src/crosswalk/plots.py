@@ -58,12 +58,20 @@ def dose_response_curve(
     cwmodel_covs = [
         cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))
     ]
-    specified_covs = (
-        [dose_variable]
-        + continuous_variables
-        + list(binary_variables.keys())
-        + ["intercept"]
-    )
+
+    # Modif Ariane: Make sure covariates are well defined regardless of whether we have an intercept or not
+    if "intercept" in cwmodel_covs:
+        specified_covs = (
+            [dose_variable]
+            + continuous_variables
+            + list(binary_variables.keys())
+            + ["intercept"]
+        )
+    else:
+        specified_covs = (
+            [dose_variable] + continuous_variables + list(binary_variables.keys())
+        )
+
     assert set(cwmodel_covs) == set(specified_covs), (
         "All covariates in cwmodel should be specified in "
         "dose_variable or continuous_variables or binary_variables!"
