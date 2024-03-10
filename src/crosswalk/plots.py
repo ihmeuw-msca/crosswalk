@@ -3,55 +3,60 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from . import utils
+from crosswalk.data import CWData
+from crosswalk.model import CWModel
+from crosswalk import utils
 
 
 def dose_response_curve(
-    dose_variable,
-    obs_method,
-    continuous_variables=[],
-    binary_variables={},
-    plots_dir=None,
-    cwdata=None,
-    cwmodel=None,
-    file_name="dose_response_plot",
-    from_zero=False,
-    include_bias=False,
-    ylim=None,
-    plot_note=None,
-    write_file=False,
+    dose_variable: str,
+    obs_method: str,
+    continuous_variables: list[str] | None = None,
+    binary_variables: dict[str, float] | None = None,
+    plots_dir: str | None = None,
+    cwdata: CWData | None = None,
+    cwmodel: CWModel | None = None,
+    file_name: str = "dose_response_plot",
+    from_zero: bool = False,
+    include_bias: bool = False,
+    ylim: tuple[float, float] | None = None,
+    plot_note: str | None = None,
+    write_file: bool = False,
 ):
-    """Dose response curve.
-    Args:
-        dose_variable (str):
-            Dose variable name.
-        obs_method (str):
-            Alternative definition or method intended to be plotted.
-        continuous_variables (list):
-            List of continuous covariate names.
-        binary_variables (dict):
-            A dictionary to specify the values for binary variables.
-            Options for values: 'median', 'mean', or certain value
-            Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
-        plots_dir (str):
-            Directory where to save the plot.
-        cwdata (CWData object):
-            CrossWalk data object.
-        cwmodel (CWModel object):
-            Fitted CrossWalk model object.
-        from_zero (bool):
-            If set to be True, y-axis will start from zero.
-        ylim (list of int or float):
-            y-axis bound. E.g. [0, 10]
-        file_name (str):
-            File name for the plot.
-        plot_note (str):
-            The notes intended to be written on the title.
-        include_bias (bool):
-            Whether to include bias or not.
-        write_file (bool):
-            Specify `True` if the plot is expected to be saved on disk.
-            If True, `plots_dir` should be specified too.
+    """Plot dose response curve. Crosswalk model with spline on dose variable
+    to parametrize the difference between the reference and alternative definitions.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    continuous_variables : list, optional
+        List of continuous covariate names.
+    binary_variables : dict, optional
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
+    plots_dir : str, optional
+        Directory where to save the plot.
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+    from_zero : bool, optional
+        If set to be True, y-axis will start from zero.
+    ylim : tuple, optional
+        y-axis bound. E.g. [0, 10]
+    file_name : str, optional
+        File name for the plot.
+    plot_note : str, optional
+        The notes intended to be written on the title.
+    include_bias : bool, optional
+        Whether to include bias or not.
+    write_file : bool, optional
+        Specify `True` if the plot is expected to be saved on disk.
+        If True, `plots_dir` should be specified too.
 
     """
     # All covariates in cwmodel should be specified.
