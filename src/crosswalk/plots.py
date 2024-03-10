@@ -14,8 +14,8 @@ def _check_cov_alignment(
     continuous_variables: list[str],
     binary_variables: dict[str, float],
 ) -> None:
-    """Check if all non-dose variables are provided with reference values. And
-    if there are any extra variables that are not in the model.
+    """Check if all non-dose and non-intercept variables are provided with
+    reference values. And if there are any extra variables that are not in the model.
 
     Parameters
     ----------
@@ -56,7 +56,8 @@ def _check_cov_alignment(
         missing_covs = set(cwmodel_covs) - set(specified_covs)
         extra_covs = set(specified_covs) - set(cwmodel_covs)
         raise ValueError(
-            "Must provide reference values for all non-dose variables in the model."
+            "Must provide reference values for all variables in the model, except"
+            "for does variable and intercept."
             "And must not specify any extra variables that are not in the model."
             f"Current missing covariates: {missing_covs}."
             f"Current extra covariates: {extra_covs}."
