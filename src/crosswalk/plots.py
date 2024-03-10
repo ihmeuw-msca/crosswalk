@@ -8,6 +8,61 @@ from crosswalk.model import CWModel
 from crosswalk import utils
 
 
+def _check_cov_alignment(
+    cwmodel: CWModel,
+    dose_variable: str,
+    continuous_variables: list[str],
+    binary_variables: dict[str, float],
+) -> None:
+    """Check if all non-dose variables are provided with reference values. And
+    if there are any extra variables that are not in the model.
+
+    Parameters
+    ----------
+    cwmodel : CWModel
+        Fitted CrossWalk model object.
+    dose_variable : str
+        Dose variable name.
+    continuous_variables : list
+        List of continuous covariate names.
+    binary_variables : dict
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary
+
+    Raises
+    ------
+    ValueError
+        If not all non-dose variables are provided with reference values.
+        If there are any extra variables that are not in the model.
+
+    TODO
+    ----
+    This can be done in a smarter way
+    - Does not distinguish between continuous and binary variables, we should allow
+      the user pass in the reference values for variables in one dictionary.
+    - We should define default behavior to avoid this error checking, if not specified
+      default to use median. If specify extra, remove it from the list. However
+      this will make the function less transparent, it is up-to-debate.
+
+    """
+    cwmodel_covs = [cov_model.cov_name for cov_model in cwmodel.cov_models]
+    specified_covs = (
+        [dose_variable] + continuous_variables + list(binary_variables.keys())
+    )
+    if "intercept" in cwmodel_covs:
+        specified_covs.append("intercept")
+    if set(cwmodel_covs) != set(specified_covs):
+        missing_covs = set(cwmodel_covs) - set(specified_covs)
+        extra_covs = set(specified_covs) - set(cwmodel_covs)
+        raise ValueError(
+            "Must provide reference values for all non-dose variables in the model."
+            "And must not specify any extra variables that are not in the model."
+            f"Current missing covariates: {missing_covs}."
+            f"Current extra covariates: {extra_covs}."
+        )
+
+
 def dose_response_curve(
     dose_variable: str,
     obs_method: str,
@@ -60,27 +115,7 @@ def dose_response_curve(
 
     """
     # All covariates in cwmodel should be specified.
-    cwmodel_covs = [
-        cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))
-    ]
-
-    # Modif Ariane: Make sure covariates are well defined regardless of whether we have an intercept or not
-    if "intercept" in cwmodel_covs:
-        specified_covs = (
-            [dose_variable]
-            + continuous_variables
-            + list(binary_variables.keys())
-            + ["intercept"]
-        )
-    else:
-        specified_covs = (
-            [dose_variable] + continuous_variables + list(binary_variables.keys())
-        )
-
-    assert set(cwmodel_covs) == set(specified_covs), (
-        "All covariates in cwmodel should be specified in "
-        "dose_variable or continuous_variables or binary_variables!"
-    )
+    _check_cov_alignment(cwmodel, dose_variable, continuous_variables, binary_variables)
 
     # Modif Ariane: Join alt_dorms here to be able to use numpy ravel when creating the data frame
     if cwdata.dorm_separator is not None:
