@@ -58,19 +58,30 @@ def dose_response_curve(
     cwmodel_covs = [
         cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))
     ]
-    specified_covs = (
-        [dose_variable]
-        + continuous_variables
-        + list(binary_variables.keys())
-        + ["intercept"]
-    )
+
+    # Modif Ariane: Make sure covariates are well defined regardless of whether we have an intercept or not
+    if "intercept" in cwmodel_covs:
+        specified_covs = (
+            [dose_variable]
+            + continuous_variables
+            + list(binary_variables.keys())
+            + ["intercept"]
+        )
+    else:
+        specified_covs = (
+            [dose_variable] + continuous_variables + list(binary_variables.keys())
+        )
+
     assert set(cwmodel_covs) == set(specified_covs), (
         "All covariates in cwmodel should be specified in "
         "dose_variable or continuous_variables or binary_variables!"
     )
 
     # Modif Ariane: Join alt_dorms here to be able to use numpy ravel when creating the data frame
-    formatted_alt_dorms = [cwdata.dorm_separator.join(x) for x in cwdata.alt_dorms]
+    if cwdata.dorm_separator is not None:
+        formatted_alt_dorms = [cwdata.dorm_separator.join(x) for x in cwdata.alt_dorms]
+    else:
+        formatted_alt_dorms = cwdata.alt_dorms
 
     data_df = pd.DataFrame(
         {
