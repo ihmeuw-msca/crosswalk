@@ -9,6 +9,106 @@ from crosswalk.model import CWModel
 from crosswalk import utils
 
 
+def dose_response_curve(
+    dose_variable: str,
+    obs_method: str,
+    continuous_variables: list[str] | None = None,
+    binary_variables: dict[str, float] | None = None,
+    plots_dir: str | None = None,
+    cwdata: CWData | None = None,
+    cwmodel: CWModel | None = None,
+    file_name: str = "dose_response_plot",
+    from_zero: bool = False,
+    include_bias: bool = False,
+    ylim: tuple[float, float] | None = None,
+    plot_note: str | None = None,
+    write_file: bool = False,
+):
+    """Plot dose response curve. Crosswalk model with spline on dose variable
+    to parametrize the difference between the reference and alternative definitions.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    continuous_variables : list, optional
+        List of continuous covariate names.
+    binary_variables : dict, optional
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
+    plots_dir : str, optional
+        Directory where to save the plot.
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+    from_zero : bool, optional
+        If set to be True, y-axis will start from zero.
+    ylim : tuple, optional
+        y-axis bound. E.g. [0, 10]
+    file_name : str, optional
+        File name for the plot.
+    plot_note : str, optional
+        The notes intended to be written on the title.
+    include_bias : bool, optional
+        Whether to include bias or not.
+    write_file : bool, optional
+        Specify `True` if the plot is expected to be saved on disk.
+        If True, `plots_dir` should be specified too.
+
+    """
+    # process input
+    continuous_variables = continuous_variables or []
+    binary_variables = binary_variables or {}
+    continuous_variables = list(set(continuous_variables) - set([dose_variable]))
+
+    # All covariates in cwmodel should be specified.
+    _check_cov_alignment(cwmodel, dose_variable, continuous_variables, binary_variables)
+
+    # Extract data for plotting data points
+    point_data = _get_point_data(dose_variable, cwdata, cwmodel)
+
+    # Extract data for plotting curves
+    curve_data = _get_curve_data(
+        dose_variable,
+        obs_method,
+        continuous_variables,
+        binary_variables,
+        cwdata,
+        cwmodel,
+        from_zero,
+        include_bias,
+    )
+
+    # Plot dose response curve
+    title = _get_title(obs_method, cwmodel)
+    knots = _get_knots(dose_variable, cwmodel)
+    fig = _plot_dose_response_curve(
+        dose_variable,
+        obs_method,
+        cwmodel.gold_dorm,
+        point_data,
+        curve_data,
+        title,
+        plot_note,
+        knots,
+        ylim,
+    )
+
+    # Save plots
+    if write_file:
+        assert plots_dir is not None, "plots_dir is not specified!"
+        outfile = Path(plots_dir) / f"{file_name}.pdf"
+        fig.savefig(outfile, orientation="landscape", bbox_inches="tight")
+        print(f"Dose response plot saved at {outfile}")
+    else:
+        fig.show()
+    plt.close()
+
+
 def _check_cov_alignment(
     cwmodel: CWModel,
     dose_variable: str,
@@ -401,106 +501,6 @@ def _get_knots(dose_variable: str, cwmodel: CWModel) -> list[float] | None:
     if cov_model.spline is None:
         return None
     return list(cov_model.spline.knots)
-
-
-def dose_response_curve(
-    dose_variable: str,
-    obs_method: str,
-    continuous_variables: list[str] | None = None,
-    binary_variables: dict[str, float] | None = None,
-    plots_dir: str | None = None,
-    cwdata: CWData | None = None,
-    cwmodel: CWModel | None = None,
-    file_name: str = "dose_response_plot",
-    from_zero: bool = False,
-    include_bias: bool = False,
-    ylim: tuple[float, float] | None = None,
-    plot_note: str | None = None,
-    write_file: bool = False,
-):
-    """Plot dose response curve. Crosswalk model with spline on dose variable
-    to parametrize the difference between the reference and alternative definitions.
-
-    Parameters
-    ----------
-    dose_variable : str
-        Dose variable name.
-    obs_method : str
-        Alternative definition or method intended to be plotted.
-    continuous_variables : list, optional
-        List of continuous covariate names.
-    binary_variables : dict, optional
-        A dictionary to specify the values for binary variables.
-        Options for values: 'median', 'mean', or certain value
-        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
-    plots_dir : str, optional
-        Directory where to save the plot.
-    cwdata : CWData, optional
-        CrossWalk data object.
-    cwmodel : CWModel, optional
-        Fitted CrossWalk model object.
-    from_zero : bool, optional
-        If set to be True, y-axis will start from zero.
-    ylim : tuple, optional
-        y-axis bound. E.g. [0, 10]
-    file_name : str, optional
-        File name for the plot.
-    plot_note : str, optional
-        The notes intended to be written on the title.
-    include_bias : bool, optional
-        Whether to include bias or not.
-    write_file : bool, optional
-        Specify `True` if the plot is expected to be saved on disk.
-        If True, `plots_dir` should be specified too.
-
-    """
-    # process input
-    continuous_variables = continuous_variables or []
-    binary_variables = binary_variables or {}
-    continuous_variables = list(set(continuous_variables) - set([dose_variable]))
-
-    # All covariates in cwmodel should be specified.
-    _check_cov_alignment(cwmodel, dose_variable, continuous_variables, binary_variables)
-
-    # Extract data for plotting data points
-    point_data = _get_point_data(dose_variable, cwdata, cwmodel)
-
-    # Extract data for plotting curves
-    curve_data = _get_curve_data(
-        dose_variable,
-        obs_method,
-        continuous_variables,
-        binary_variables,
-        cwdata,
-        cwmodel,
-        from_zero,
-        include_bias,
-    )
-
-    # Plot dose response curve
-    title = _get_title(obs_method, cwmodel)
-    knots = _get_knots(dose_variable, cwmodel)
-    fig = _plot_dose_response_curve(
-        dose_variable,
-        obs_method,
-        cwmodel.gold_dorm,
-        point_data,
-        curve_data,
-        title,
-        plot_note,
-        knots,
-        ylim,
-    )
-
-    # Save plots
-    if write_file:
-        assert plots_dir is not None, "plots_dir is not specified!"
-        outfile = Path(plots_dir) / f"{file_name}.pdf"
-        fig.savefig(outfile, orientation="landscape", bbox_inches="tight")
-        print(f"Dose response plot saved at {outfile}")
-    else:
-        fig.show()
-    plt.close()
 
 
 def funnel_plot(
