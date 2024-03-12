@@ -189,15 +189,20 @@ def _plot_dose_response_curve(
     sns.set_style("whitegrid")
     plt.rcParams["axes.edgecolor"] = "0.15"
     plt.rcParams["axes.linewidth"] = 0.5
+    fontsize = dict(body=10, title=12)
 
     fig, ax = plt.subplots(figsize=(10, 8))
-    ax.tick_params(labelsize=10)
+    ax.tick_params(labelsize=fontsize["body"])
 
     plot_key = {
-        "inlier, inside funnel": ("o", "seagreen", "darkgreen"),
-        "inlier, outside funnel": ("o", "coral", "firebrick"),
-        "outlier, inside funnel": ("x", "darkgreen", "darkgreen"),
-        "outlier, outside funnel": ("x", "firebrick", "firebrick"),
+        "inlier, inside funnel": dict(
+            marker="o", facecolors="seagreen", edgecolors="darkgreen"
+        ),
+        "inlier, outside funnel": dict(
+            marker="o", facecolors="coral", edgecolors="firebrick"
+        ),
+        "outlier, inside funnel": dict(marker="x", facecolors="darkgreen"),
+        "outlier, outside funnel": dict(marker="x", facecolors="firebrick"),
     }
 
     ax.fill_between(
@@ -220,8 +225,8 @@ def _plot_dose_response_curve(
     # plt.xlim([min_cov, max_cov])
     if ylim is not None:
         ax.set_ylim(ylim)
-    ax.set_xlabel("Exposure", fontsize=10)
-    ax.set_ylabel("Effect size", fontsize=10)
+    ax.set_xlabel("Exposure", fontsize=fontsize["body"])
+    ax.set_ylabel("Effect size", fontsize=fontsize["body"])
 
     # other comparison
     non_direct_df = point_data.query(
@@ -238,12 +243,10 @@ def _plot_dose_response_curve(
             df_sub[dose_variable],
             df_sub["y"],
             s=df_sub["size_var"],
-            marker=value[0],
-            facecolors=value[1],
-            edgecolors=value[2],
             linewidth=0.6,
             alpha=0.6,
             label=key,
+            **value,
         )
 
     if not non_direct_df.empty:
@@ -259,7 +262,7 @@ def _plot_dose_response_curve(
     # Plot title
     ax.set_title(title, fontsize=10)
     if plot_note is not None:
-        fig.suptitle(plot_note, y=1.01, fontsize=12)
+        fig.suptitle(plot_note, y=1.01, fontsize=fontsize["title"])
 
     ax.legend(loc="upper left")
 
