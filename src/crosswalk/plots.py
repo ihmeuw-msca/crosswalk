@@ -68,6 +68,23 @@ def _check_cov_alignment(
 def _get_point_data(
     dose_variable: str, cwdata: CWData, cwmodel: CWModel
 ) -> pd.DataFrame:
+    """Get data for data points on the figure.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+
+    Returns
+    -------
+    DataFrame
+        Data frame contains positions of the points to be plotted.
+
+    """
     df = cwdata.df.reset_index(drop=True)
     data = pd.DataFrame(
         {
@@ -124,6 +141,35 @@ def _get_curve_data(
     from_zero: bool,
     include_bias: bool,
 ) -> pd.DataFrame:
+    """Get data for curves on the figure.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    continuous_variables (list):
+            List of continuous covariate names.
+    binary_variables (dict):
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+    from_zero : bool, optional
+        If set to be True, y-axis will start from zero.
+    include_bias : bool, optional
+        Whether to include bias or not.
+
+    Returns
+    -------
+    DataFrame
+        Data frame contains curve information, including the uncertainty.
+
+    """
     df = cwdata.df.copy()
     # check for knots
     min_cov = 0.0 if from_zero else df[dose_variable].min()
@@ -185,6 +231,35 @@ def _plot_dose_response_curve(
     knots: list[float] | None = None,
     ylim: tuple[float, float] | None = None,
 ) -> plt.Figure:
+    """Create dose response curve.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    gold_dorm : str
+        Gold standard definition or method.
+    point_data : DataFrame
+        Point position data.
+    curve_data : DataFrame
+        Dose response curve and its uncertainty data.
+    title : str
+        Title of the figure.
+    plot_note : str
+        Super title of the figure.
+    knots : list[float], optional
+        Knots placement of the dose variable.
+    ylim : tuple[float, float]
+        Range of the y axis for the figure.
+
+    Returns
+    -------
+    Figure
+        Figure object for saving the figure.
+
+    """
     # plot
     sns.set_style("whitegrid")
     plt.rcParams["axes.edgecolor"] = "0.15"
@@ -274,6 +349,21 @@ def _plot_dose_response_curve(
 
 
 def _get_title(obs_method: str, cwmodel: CWModel) -> str:
+    """Get title of the figure, consists of beta values for each covariate.
+
+    Parameters
+    ----------
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+
+    Returns
+    -------
+    str
+        Title of the figure.
+
+    """
     var_sizes = [cov_model.num_vars for cov_model in cwmodel.cov_models]
     cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
 
@@ -290,6 +380,22 @@ def _get_title(obs_method: str, cwmodel: CWModel) -> str:
 
 
 def _get_knots(dose_variable: str, cwmodel: CWModel) -> list[float] | None:
+    """Get the potential spline knots placement.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+
+    Returns
+    -------
+    str, optional
+        Knots placement of the dose variable. If dose variable does not have a
+        spline, this function will return None.
+
+    """
     cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
     cov_model = cwmodel.cov_models[cov_names.index(dose_variable)]
     if cov_model.spline is None:
