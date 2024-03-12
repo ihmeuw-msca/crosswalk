@@ -84,7 +84,9 @@ def _get_point_data(
         }
     )
 
-    data = pd.concat([data, df[cwdata.col_covs]], axis=1)
+    data = pd.concat(
+        [data, df[[cov for cov in cwdata.col_covs if cov not in data]]], axis=1
+    )
 
     data["y_pred"] = cwmodel.adjust_orig_vals(
         df=data,
@@ -163,8 +165,8 @@ def _get_curve_data(
     data["y_mean"] = pred["pred_diff_mean"]
     data["y_sd_fe"] = pred["pred_diff_sd"]
     data["y_lo_fe"] = data.eval("y_mean - 1.96 * y_sd_fe")
-    data["y_lo_fe"] = data.eval("y_mean + 1.96 * y_sd_fe")
-    data["y_sd"] = data.eval(f"sqrt(y_sd_fixed ** 2 + {cwmodel.gamma})")
+    data["y_hi_fe"] = data.eval("y_mean + 1.96 * y_sd_fe")
+    data["y_sd"] = data.eval(f"sqrt(y_sd_fe ** 2 + {cwmodel.gamma[0]})")
     data["y_lo"] = data.eval("y_mean - 1.96 * y_sd")
     data["y_hi"] = data.eval("y_mean + 1.96 * y_sd")
 
@@ -223,6 +225,8 @@ def dose_response_curve(
 
     """
     # process input
+    continuous_variables = continuous_variables or []
+    binary_variables = binary_variables or {}
     continuous_variables = list(set(continuous_variables) - set([dose_variable]))
 
     # All covariates in cwmodel should be specified.
