@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
 from crosswalk.data import CWData
 from crosswalk.model import CWModel
 from crosswalk import utils
@@ -173,6 +174,105 @@ def _get_curve_data(
     return data
 
 
+def _plot_dose_response_curve(
+    dose_variable: str,
+    obs_method: str,
+    gold_dorm: str,
+    point_data: pd.DataFrame,
+    curve_data: pd.DataFrame,
+    ylim: tuple[float, float] | None = None,
+) -> plt.Figure:
+    # plot
+    sns.set_style("whitegrid")
+    plt.rcParams["axes.edgecolor"] = "0.15"
+    plt.rcParams["axes.linewidth"] = 0.5
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.tick_params(labelsize=10)
+
+    plot_key = {
+        "inlier, inside funnel": ("o", "seagreen", "darkgreen"),
+        "inlier, outside funnel": ("o", "coral", "firebrick"),
+        "outlier, inside funnel": ("x", "darkgreen", "darkgreen"),
+        "outlier, outside funnel": ("x", "firebrick", "firebrick"),
+    }
+
+    ax.fill_between(
+        curve_data[dose_variable],
+        curve_data["y_lo"],
+        curve_data["y_hi"],
+        alpha=0.5,
+        color="lightgrey",
+    )
+    ax.fill_between(
+        curve_data[dose_variable],
+        curve_data["y_lo_fe"],
+        curve_data["y_hi_fe"],
+        alpha=0.75,
+        color="darkgrey",
+    )
+    ax.plot(
+        curve_data[dose_variable], curve_data["y_mean"], color="black", linewidth=0.75
+    )
+    # plt.xlim([min_cov, max_cov])
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    ax.set_xlabel("Exposure", fontsize=10)
+    ax.set_ylabel("Effect size", fontsize=10)
+
+    # other comparison
+    non_direct_df = point_data.loc[
+        (point_data.dorm_ref != gold_dorm) | (point_data.dorm_alt != obs_method)
+    ]
+    # direct comparison
+    plot_data_df = point_data.loc[
+        (point_data.dorm_ref == gold_dorm) & (point_data.dorm_alt == obs_method)
+    ]
+
+    for key, value in plot_key.items():
+        ax.scatter(
+            plot_data_df.loc[plot_data_df.plot_guide == key, f"{dose_variable}"],
+            plot_data_df.loc[plot_data_df.plot_guide == key, "y"],
+            s=plot_data_df.loc[plot_data_df.plot_guide == key, "size_var"],
+            marker=value[0],
+            facecolors=value[1],
+            edgecolors=value[2],
+            linewidth=0.6,
+            alpha=0.6,
+            label=key,
+        )
+
+    if not non_direct_df.empty:
+        ax.scatter(
+            non_direct_df[f"{dose_variable}"],
+            non_direct_df["y"],
+            facecolors="grey",
+            edgecolors="grey",
+            alpha=0.3,
+            label="Other comparison",
+        )
+    # Content string with betas
+    # TODO: sort this part out
+    # betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
+    # content_string = ""
+    # for idx in np.arange(len(cwmodel.cov_models)):
+    #     cov = cwmodel.cov_models[idx].cov_name
+    #     knots_slices = lst_slices[idx]
+    #     content_string += f"{cov}: {betas[knots_slices]}; "
+    # # Plot title
+    # if plot_note is not None:
+    #     plt.title(content_string, fontsize=10)
+    #     plt.suptitle(plot_note, y=1.01, fontsize=12)
+    # else:
+    #     plt.title(content_string, fontsize=10)
+    # plt.legend(loc="upper left")
+
+    # for knot in knots:
+    #     plt.axvline(knot, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
+
+    return fig
+
+
 def dose_response_curve(
     dose_variable: str,
     obs_method: str,
@@ -233,10 +333,10 @@ def dose_response_curve(
     _check_cov_alignment(cwmodel, dose_variable, continuous_variables, binary_variables)
 
     # Extract data for plotting data points
-    data_df = _get_point_data(dose_variable, cwdata, cwmodel)
+    point_data = _get_point_data(dose_variable, cwdata, cwmodel)
 
     # Extract data for plotting curves
-    pred_df = _get_curve_data(
+    curve_data = _get_curve_data(
         dose_variable,
         obs_method,
         continuous_variables,
@@ -247,99 +347,20 @@ def dose_response_curve(
         include_bias,
     )
 
-    plot_key = {
-        "inlier, inside funnel": ("o", "seagreen", "darkgreen"),
-        "inlier, outside funnel": ("o", "coral", "firebrick"),
-        "outlier, inside funnel": ("x", "darkgreen", "darkgreen"),
-        "outlier, outside funnel": ("x", "firebrick", "firebrick"),
-    }
-
-    # plot
-    sns.set_style("whitegrid")
-    plt.figure(figsize=(10, 8))
-    plt.rcParams["axes.edgecolor"] = "0.15"
-    plt.rcParams["axes.linewidth"] = 0.5
-    plt.fill_between(
-        pred_df[dose_variable],
-        pred_df["y_lo"],
-        pred_df["y_hi"],
-        alpha=0.5,
-        color="lightgrey",
+    # Plot dose response curve
+    fig = _plot_dose_response_curve(
+        dose_variable, obs_method, cwmodel.gold_dorm, point_data, curve_data, ylim
     )
-    plt.fill_between(
-        pred_df[dose_variable],
-        pred_df["y_lo_fe"],
-        pred_df["y_hi_fe"],
-        alpha=0.75,
-        color="darkgrey",
-    )
-    plt.plot(pred_df[dose_variable], pred_df["y_mean"], color="black", linewidth=0.75)
-    # plt.xlim([min_cov, max_cov])
-    if ylim is not None:
-        plt.ylim(ylim)
-    plt.xlabel("Exposure", fontsize=10)
-    plt.xticks(fontsize=10)
-    plt.ylabel("Effect size", fontsize=10)
-    plt.yticks(fontsize=10)
 
-    # other comparison
-    non_direct_df = data_df.loc[
-        (data_df.dorm_ref != cwmodel.gold_dorm) | (data_df.dorm_alt != obs_method)
-    ]
-    # direct comparison
-    plot_data_df = data_df.loc[
-        (data_df.dorm_ref == cwmodel.gold_dorm) & (data_df.dorm_alt == obs_method)
-    ]
-
-    for key, value in plot_key.items():
-        plt.scatter(
-            plot_data_df.loc[plot_data_df.plot_guide == key, f"{dose_variable}"],
-            plot_data_df.loc[plot_data_df.plot_guide == key, "y"],
-            s=plot_data_df.loc[plot_data_df.plot_guide == key, "size_var"],
-            marker=value[0],
-            facecolors=value[1],
-            edgecolors=value[2],
-            linewidth=0.6,
-            alpha=0.6,
-            label=key,
-        )
-
-    if not non_direct_df.empty:
-        plt.scatter(
-            non_direct_df[f"{dose_variable}"],
-            non_direct_df["y"],
-            facecolors="grey",
-            edgecolors="grey",
-            alpha=0.3,
-            label="Other comparison",
-        )
-    # Content string with betas
-    # TODO: sort this part out
-    # betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
-    # content_string = ""
-    # for idx in np.arange(len(cwmodel.cov_models)):
-    #     cov = cwmodel.cov_models[idx].cov_name
-    #     knots_slices = lst_slices[idx]
-    #     content_string += f"{cov}: {betas[knots_slices]}; "
-    # # Plot title
-    # if plot_note is not None:
-    #     plt.title(content_string, fontsize=10)
-    #     plt.suptitle(plot_note, y=1.01, fontsize=12)
-    # else:
-    #     plt.title(content_string, fontsize=10)
-    # plt.legend(loc="upper left")
-
-    # for knot in knots:
-    #     plt.axvline(knot, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
     # Save plots
     if write_file:
         assert plots_dir is not None, "plots_dir is not specified!"
-        outfile = os.path.join(plots_dir, f"{file_name}.pdf")
-        plt.savefig(outfile, orientation="landscape", bbox_inches="tight")
+        outfile = Path(plots_dir) / f"{file_name}.pdf"
+        fig.savefig(outfile, orientation="landscape", bbox_inches="tight")
         print(f"Dose response plot saved at {outfile}")
     else:
-        plt.show()
-    plt.close()
+        fig.show()
+    fig.close()
 
 
 def funnel_plot(
