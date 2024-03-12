@@ -3,309 +3,504 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from . import utils
+from pathlib import Path
+from crosswalk.data import CWData
+from crosswalk.model import CWModel
+from crosswalk import utils
 
 
 def dose_response_curve(
-    dose_variable,
-    obs_method,
-    continuous_variables=[],
-    binary_variables={},
-    plots_dir=None,
-    cwdata=None,
-    cwmodel=None,
-    file_name="dose_response_plot",
-    from_zero=False,
-    include_bias=False,
-    ylim=None,
-    plot_note=None,
-    write_file=False,
+    dose_variable: str,
+    obs_method: str,
+    continuous_variables: list[str] | None = None,
+    binary_variables: dict[str, float] | None = None,
+    plots_dir: str | None = None,
+    cwdata: CWData | None = None,
+    cwmodel: CWModel | None = None,
+    file_name: str = "dose_response_plot",
+    from_zero: bool = False,
+    include_bias: bool = False,
+    ylim: tuple[float, float] | None = None,
+    plot_note: str | None = None,
+    write_file: bool = False,
 ):
-    """Dose response curve.
-    Args:
-        dose_variable (str):
-            Dose variable name.
-        obs_method (str):
-            Alternative definition or method intended to be plotted.
-        continuous_variables (list):
-            List of continuous covariate names.
-        binary_variables (dict):
-            A dictionary to specify the values for binary variables.
-            Options for values: 'median', 'mean', or certain value
-            Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
-        plots_dir (str):
-            Directory where to save the plot.
-        cwdata (CWData object):
-            CrossWalk data object.
-        cwmodel (CWModel object):
-            Fitted CrossWalk model object.
-        from_zero (bool):
-            If set to be True, y-axis will start from zero.
-        ylim (list of int or float):
-            y-axis bound. E.g. [0, 10]
-        file_name (str):
-            File name for the plot.
-        plot_note (str):
-            The notes intended to be written on the title.
-        include_bias (bool):
-            Whether to include bias or not.
-        write_file (bool):
-            Specify `True` if the plot is expected to be saved on disk.
-            If True, `plots_dir` should be specified too.
+    """Plot dose response curve. Crosswalk model with spline on dose variable
+    to parametrize the difference between the reference and alternative definitions.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    continuous_variables : list, optional
+        List of continuous covariate names.
+    binary_variables : dict, optional
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
+    plots_dir : str, optional
+        Directory where to save the plot.
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+    from_zero : bool, optional
+        If set to be True, y-axis will start from zero.
+    ylim : tuple, optional
+        y-axis bound. E.g. [0, 10]
+    file_name : str, optional
+        File name for the plot.
+    plot_note : str, optional
+        The notes intended to be written on the title.
+    include_bias : bool, optional
+        Whether to include bias or not.
+    write_file : bool, optional
+        Specify `True` if the plot is expected to be saved on disk.
+        If True, `plots_dir` should be specified too.
 
     """
+    # process input
+    continuous_variables = continuous_variables or []
+    binary_variables = binary_variables or {}
+    continuous_variables = list(set(continuous_variables) - set([dose_variable]))
+
     # All covariates in cwmodel should be specified.
-    cwmodel_covs = [
-        cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))
-    ]
+    _check_cov_alignment(cwmodel, dose_variable, continuous_variables, binary_variables)
 
-    # Modif Ariane: Make sure covariates are well defined regardless of whether we have an intercept or not
-    if "intercept" in cwmodel_covs:
-        specified_covs = (
-            [dose_variable]
-            + continuous_variables
-            + list(binary_variables.keys())
-            + ["intercept"]
-        )
-    else:
-        specified_covs = (
-            [dose_variable] + continuous_variables + list(binary_variables.keys())
-        )
+    # Extract data for plotting data points
+    point_data = _get_point_data(dose_variable, cwdata, cwmodel)
 
-    assert set(cwmodel_covs) == set(specified_covs), (
-        "All covariates in cwmodel should be specified in "
-        "dose_variable or continuous_variables or binary_variables!"
+    # Extract data for plotting curves
+    curve_data = _get_curve_data(
+        dose_variable,
+        obs_method,
+        continuous_variables,
+        binary_variables,
+        cwdata,
+        cwmodel,
+        from_zero,
+        include_bias,
     )
 
-    # Modif Ariane: Join alt_dorms here to be able to use numpy ravel when creating the data frame
-    if cwdata.dorm_separator is not None:
-        formatted_alt_dorms = [cwdata.dorm_separator.join(x) for x in cwdata.alt_dorms]
-    else:
-        formatted_alt_dorms = cwdata.alt_dorms
+    # Plot dose response curve
+    title = _get_title(obs_method, cwmodel)
+    knots = _get_knots(dose_variable, cwmodel)
+    fig = _plot_dose_response_curve(
+        dose_variable,
+        obs_method,
+        cwmodel.gold_dorm,
+        point_data,
+        curve_data,
+        title,
+        plot_note,
+        knots,
+        ylim,
+    )
 
-    data_df = pd.DataFrame(
+    # Save plots
+    if write_file:
+        assert plots_dir is not None, "plots_dir is not specified!"
+        outfile = Path(plots_dir) / f"{file_name}.pdf"
+        fig.savefig(outfile, orientation="landscape", bbox_inches="tight")
+        print(f"Dose response plot saved at {outfile}")
+    else:
+        fig.show()
+    plt.close()
+
+
+def _check_cov_alignment(
+    cwmodel: CWModel,
+    dose_variable: str,
+    continuous_variables: list[str],
+    binary_variables: dict[str, float],
+) -> None:
+    """Check if all non-dose and non-intercept variables are provided with
+    reference values. And if there are any extra variables that are not in the model.
+
+    Parameters
+    ----------
+    cwmodel : CWModel
+        Fitted CrossWalk model object.
+    dose_variable : str
+        Dose variable name.
+    continuous_variables : list
+        List of continuous covariate names.
+    binary_variables : dict
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary
+
+    Raises
+    ------
+    ValueError
+        If not all non-dose variables are provided with reference values.
+        If there are any extra variables that are not in the model.
+
+    TODO
+    ----
+    This can be done in a smarter way
+    - Does not distinguish between continuous and binary variables, we should allow
+      the user pass in the reference values for variables in one dictionary.
+    - We should define default behavior to avoid this error checking, if not specified
+      default to use median. If specify extra, remove it from the list. However
+      this will make the function less transparent, it is up-to-debate.
+
+    """
+    cwmodel_covs = [cov_model.cov_name for cov_model in cwmodel.cov_models]
+    specified_covs = (
+        [dose_variable] + continuous_variables + list(binary_variables.keys())
+    )
+    if "intercept" in cwmodel_covs:
+        specified_covs.append("intercept")
+    if set(cwmodel_covs) != set(specified_covs):
+        missing_covs = set(cwmodel_covs) - set(specified_covs)
+        extra_covs = set(specified_covs) - set(cwmodel_covs)
+        raise ValueError(
+            "Must provide reference values for all variables in the model, except"
+            "for does variable and intercept."
+            "And must not specify any extra variables that are not in the model."
+            f"Current missing covariates: {missing_covs}."
+            f"Current extra covariates: {extra_covs}."
+        )
+
+
+def _get_point_data(
+    dose_variable: str, cwdata: CWData, cwmodel: CWModel
+) -> pd.DataFrame:
+    """Get data for data points on the figure.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+
+    Returns
+    -------
+    DataFrame
+        Data frame contains positions of the points to be plotted.
+
+    """
+    df = cwdata.df.reset_index(drop=True)
+    data = pd.DataFrame(
         {
-            "y": cwdata.df[cwdata.col_obs].values,
-            "se": cwdata.df[cwdata.col_obs_se].values,
+            "y": df[cwdata.col_obs],
+            "se": df[cwdata.col_obs_se],
             "w": cwmodel.lt.w,
-            f"{dose_variable}": cwdata.df[dose_variable],
-            "obs_method": np.ravel(formatted_alt_dorms),
-            "dorm_alt": cwdata.df[cwdata.col_alt_dorms].values,
-            "dorm_ref": cwdata.df[cwdata.col_ref_dorms].values,
+            dose_variable: df[dose_variable],
+            "obs_method": df[cwdata.col_alt_dorms],
+            "dorm_alt": df[cwdata.col_alt_dorms],
+            "dorm_ref": df[cwdata.col_ref_dorms],
+            "intercept": 1.0,
+            # bolier variables to use adjust_orig_vals function
+            "orig_vals_mean": 0.1,
+            "orig_vals_se": 0.1,
         }
     )
 
-    # Modif Ariane: We no longer need these lines as it is done above
-    #    if cwdata.dorm_separator is not None:
-    #        data_df['obs_method'] = data_df.obs_method.map(lambda x: cwdata.dorm_separator.join(x))
+    data = pd.concat(
+        [data, df[[cov for cov in cwdata.col_covs if cov not in data]]], axis=1
+    )
 
-    for var in cwdata.col_covs:
-        data_df[var] = cwdata.df[var]
+    data["y_pred"] = cwmodel.adjust_orig_vals(
+        df=data,
+        orig_dorms="obs_method",
+        orig_vals_mean="orig_vals_mean",
+        orig_vals_se="orig_vals_se",
+    )["pred_diff_mean"]
 
-    # drop dose variable
-    continuous_variables = [v for v in continuous_variables if v != dose_variable]
-    cov_idx = {}  # dictionary of cov_model name with corresponding index
-    lst_intervals = []  # list of cov_model with correponding number of intervals
-    for idx in np.arange(len(cwmodel.cov_models)):
-        cov = cwmodel.cov_models[idx].cov_name
-        cov_idx[cov] = idx
-        if cwmodel.cov_models[idx].spline:
-            num_intervals = cwmodel.cov_models[idx].spline.num_intervals
-        else:
-            # For cov with no spline
-            num_intervals = 1
-        lst_intervals.append(num_intervals)
-    # Slices for each cov based on number of knots; for extracting betas later on
-    lst_slices = utils.sizes_to_slices(np.array(lst_intervals))
+    # determine points inside/outside funnel
+    data["position"] = "inside funnel"
+    data.loc[data.eval("abs(y - y_pred) > 1.96 * se"), "position"] = "outside funnel"
 
+    # get inlier/outlier
+    data["trim"] = "inlier"
+    data.loc[data.eval("w < 0.6"), "trim"] = "outlier"
+
+    # get plot guide
+    data["plot_guide"] = data["trim"] + ", " + data["position"]
+
+    # get scaled marker size
+    data["size_var"] = data.eval("1.0 / se")
+    data["size_var"] = data.eval("300 * size_var / size_var.max()")
+
+    return data
+
+
+def _get_curve_data(
+    dose_variable: str,
+    obs_method: str,
+    continuous_variables: list[str],
+    binary_variables: dict[str, float],
+    cwdata: CWData,
+    cwmodel: CWModel,
+    from_zero: bool,
+    include_bias: bool,
+) -> pd.DataFrame:
+    """Get data for curves on the figure.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    continuous_variables (list):
+            List of continuous covariate names.
+    binary_variables (dict):
+        A dictionary to specify the values for binary variables.
+        Options for values: 'median', 'mean', or certain value
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
+    cwdata : CWData, optional
+        CrossWalk data object.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+    from_zero : bool, optional
+        If set to be True, y-axis will start from zero.
+    include_bias : bool, optional
+        Whether to include bias or not.
+
+    Returns
+    -------
+    DataFrame
+        Data frame contains curve information, including the uncertainty.
+
+    """
+    df = cwdata.df.copy()
     # check for knots
-    if dose_variable in cwdata.covs.columns:
-        idx = cov_idx[dose_variable]
-        if cwmodel.cov_models[idx].spline:
-            knots = cwmodel.cov_models[idx].spline.knots
-        else:
-            knots = np.array([])
-    else:
-        knots = np.array([])
-
-    # determine minimum and maximum exposure
-    if knots.any():
-        min_cov = knots[0]
-        max_cov = knots[-1]
-    else:
-        min_cov = np.min(data_df[dose_variable])
-        max_cov = np.max(data_df[dose_variable])
-
-    if from_zero:
-        min_cov = 0
+    min_cov = 0.0 if from_zero else df[dose_variable].min()
+    max_cov = cwdata.df[dose_variable].max()
 
     # construct dataframe for prediction
     cov_range = max_cov - min_cov
     dose_grid = np.arange(min_cov, max_cov + cov_range * 0.001, cov_range / 1000)
 
-    cols = cwdata.covs.columns
+    data = pd.DataFrame(
+        {
+            dose_variable: dose_grid,
+            "obs_method": obs_method,
+            "intercept": 1.0,
+            # bolier variables to use adjust_orig_vals function
+            "orig_vals_mean": 0.1,
+            "orig_vals_se": 0.1,
+        }
+    )
+
     if include_bias:
-        pred_df = pd.DataFrame(
-            dict(zip(cols, np.ones(len(cols)))), index=np.arange(len(dose_grid))
-        )
-    else:
-        pred_df = pd.DataFrame(
-            dict(zip(cols, np.zeros(len(cols)))), index=np.arange(len(dose_grid))
-        )
-        pred_df["intercept"] = 1
-
-    # if it's continuous variable, take median
-    for var in continuous_variables:
-        pred_df[var] = np.median(cwdata.covs[var])
-
-    # if binary_variables specified, process binary variables
-    if binary_variables:
-        for var in binary_variables.keys():
-            value = binary_variables.get(var)
-            if value == "mean":
-                pred_df[var] = np.mean(data_df[var])
-            elif value == "median":
-                pred_df[var] = np.median(data_df[var])
+        for cov in continuous_variables:
+            data[cov] = df[cov].median()
+        for cov, value in binary_variables.items():
+            if value in ["mean", "median"]:
+                data[cov] = df.eval(f"{cov}.{value}()")
             else:
-                pred_df[var] = value
+                data[cov] = value
+    else:
+        for cov in continuous_variables + list(binary_variables.keys()):
+            data[cov] = 0.0
 
-    # predict for line
-    pred_df[dose_variable] = dose_grid
-    pred_df["obs_method"] = obs_method
-    # prev and prev_se values don't matter (0-1)
-    pred_df["prev"] = 0.1
-    pred_df["prev_se"] = 0.1
-    y_pred = cwmodel.adjust_orig_vals(
-        df=pred_df,
+    pred = cwmodel.adjust_orig_vals(
+        df=data,
         orig_dorms="obs_method",
-        orig_vals_mean="prev",
-        orig_vals_se="prev_se",
-    )
-    y_mean = y_pred["pred_diff_mean"]
-    y_sd_fixed = y_pred["pred_diff_sd"]
-    # Standard deviation for effects including heterogeneity
-    y_sd = np.sqrt(y_sd_fixed**2 + cwmodel.gamma)
-
-    # lower/upper bound with fixed effect and heterogeneity
-    y_lo, y_hi = y_mean - 1.96 * y_sd, y_mean + 1.96 * y_sd
-    # lower/upper bound with only fixed effect
-    y_lo_fe, y_hi_fe = y_mean - 1.96 * y_sd_fixed, y_mean + 1.96 * y_sd_fixed
-
-    # predict for cwdata
-    data_df["intercept"] = 1
-    data_df["prev"] = 0.1
-    data_df["prev_se"] = 0.1
-
-    data_pred = cwmodel.adjust_orig_vals(
-        df=data_df,
-        orig_dorms="obs_method",
-        orig_vals_mean="prev",
-        orig_vals_se="prev_se",
-    )
-    # data_pred = data_pred['pred_diff_mean']
-    data_df["pred"] = data_pred["pred_diff_mean"]
-
-    # determine points inside/outside funnel
-    data_df["position"] = "inside funnel"
-    data_df.loc[data_df.y < (data_df.pred - (data_df.se * 1.96)).values, "position"] = (
-        "outside funnel"
-    )
-    data_df.loc[data_df.y > (data_df.pred + (data_df.se * 1.96)).values, "position"] = (
-        "outside funnel"
+        orig_vals_mean="orig_vals_mean",
+        orig_vals_se="orig_vals_se",
     )
 
-    # get inlier/outlier
-    data_df.loc[data_df.w >= 0.6, "trim"] = "inlier"
-    data_df.loc[data_df.w < 0.6, "trim"] = "outlier"
+    data["y_mean"] = pred["pred_diff_mean"]
+    data["y_sd_fe"] = pred["pred_diff_sd"]
+    data["y_lo_fe"] = data.eval("y_mean - 1.96 * y_sd_fe")
+    data["y_hi_fe"] = data.eval("y_mean + 1.96 * y_sd_fe")
+    data["y_sd"] = data.eval(f"sqrt(y_sd_fe ** 2 + {cwmodel.gamma[0]})")
+    data["y_lo"] = data.eval("y_mean - 1.96 * y_sd")
+    data["y_hi"] = data.eval("y_mean + 1.96 * y_sd")
 
-    # get plot guide
-    data_df["plot_guide"] = data_df["trim"] + ", " + data_df["position"]
-    plot_key = {
-        "inlier, inside funnel": ("o", "seagreen", "darkgreen"),
-        "inlier, outside funnel": ("o", "coral", "firebrick"),
-        "outlier, inside funnel": ("x", "darkgreen", "darkgreen"),
-        "outlier, outside funnel": ("x", "firebrick", "firebrick"),
-    }
+    return data
 
-    # get scaled marker size
-    data_df["size_var"] = 1 / data_df.se
-    data_df["size_var"] = data_df["size_var"] * (300 / data_df["size_var"].max())
 
+def _plot_dose_response_curve(
+    dose_variable: str,
+    obs_method: str,
+    gold_dorm: str,
+    point_data: pd.DataFrame,
+    curve_data: pd.DataFrame,
+    title: str,
+    plot_note: str | None = None,
+    knots: list[float] | None = None,
+    ylim: tuple[float, float] | None = None,
+) -> plt.Figure:
+    """Create dose response curve.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    gold_dorm : str
+        Gold standard definition or method.
+    point_data : DataFrame
+        Point position data.
+    curve_data : DataFrame
+        Dose response curve and its uncertainty data.
+    title : str
+        Title of the figure.
+    plot_note : str
+        Super title of the figure.
+    knots : list[float], optional
+        Knots placement of the dose variable.
+    ylim : tuple[float, float]
+        Range of the y axis for the figure.
+
+    Returns
+    -------
+    Figure
+        Figure object for saving the figure.
+
+    """
     # plot
     sns.set_style("whitegrid")
-    plt.figure(figsize=(10, 8))
     plt.rcParams["axes.edgecolor"] = "0.15"
     plt.rcParams["axes.linewidth"] = 0.5
-    plt.fill_between(pred_df[dose_variable], y_lo, y_hi, alpha=0.5, color="lightgrey")
-    plt.fill_between(
-        pred_df[dose_variable], y_lo_fe, y_hi_fe, alpha=0.75, color="darkgrey"
+    fontsize = dict(body=10, title=12)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.tick_params(labelsize=fontsize["body"])
+
+    plot_key = {
+        "inlier, inside funnel": dict(
+            marker="o", facecolors="seagreen", edgecolors="darkgreen"
+        ),
+        "inlier, outside funnel": dict(
+            marker="o", facecolors="coral", edgecolors="firebrick"
+        ),
+        "outlier, inside funnel": dict(marker="x", facecolors="darkgreen"),
+        "outlier, outside funnel": dict(marker="x", facecolors="firebrick"),
+    }
+
+    ax.fill_between(
+        curve_data[dose_variable],
+        curve_data["y_lo"],
+        curve_data["y_hi"],
+        alpha=0.5,
+        color="lightgrey",
     )
-    plt.plot(pred_df[dose_variable], y_mean, color="black", linewidth=0.75)
-    plt.xlim([min_cov, max_cov])
+    ax.fill_between(
+        curve_data[dose_variable],
+        curve_data["y_lo_fe"],
+        curve_data["y_hi_fe"],
+        alpha=0.75,
+        color="darkgrey",
+    )
+    ax.plot(
+        curve_data[dose_variable], curve_data["y_mean"], color="black", linewidth=0.75
+    )
+    # plt.xlim([min_cov, max_cov])
     if ylim is not None:
-        plt.ylim(ylim)
-    plt.xlabel("Exposure", fontsize=10)
-    plt.xticks(fontsize=10)
-    plt.ylabel("Effect size", fontsize=10)
-    plt.yticks(fontsize=10)
+        ax.set_ylim(ylim)
+    ax.set_xlabel("Exposure", fontsize=fontsize["body"])
+    ax.set_ylabel("Effect size", fontsize=fontsize["body"])
 
     # other comparison
-    non_direct_df = data_df.loc[
-        (data_df.dorm_ref != cwmodel.gold_dorm) | (data_df.dorm_alt != obs_method)
-    ]
+    non_direct_df = point_data.query(
+        f"(dorm_ref != '{gold_dorm}') | (dorm_alt != '{obs_method}')"
+    )
     # direct comparison
-    plot_data_df = data_df.loc[
-        (data_df.dorm_ref == cwmodel.gold_dorm) & (data_df.dorm_alt == obs_method)
-    ]
+    plot_data_df = point_data.query(
+        f"(dorm_ref == '{gold_dorm}') & (dorm_alt == '{obs_method}')"
+    )
 
     for key, value in plot_key.items():
-        plt.scatter(
-            plot_data_df.loc[plot_data_df.plot_guide == key, f"{dose_variable}"],
-            plot_data_df.loc[plot_data_df.plot_guide == key, "y"],
-            s=plot_data_df.loc[plot_data_df.plot_guide == key, "size_var"],
-            marker=value[0],
-            facecolors=value[1],
-            edgecolors=value[2],
+        df_sub = plot_data_df.query(f"plot_guide == '{key}'")
+        ax.scatter(
+            df_sub[dose_variable],
+            df_sub["y"],
+            s=df_sub["size_var"],
             linewidth=0.6,
             alpha=0.6,
             label=key,
+            **value,
         )
 
     if not non_direct_df.empty:
-        plt.scatter(
-            non_direct_df[f"{dose_variable}"],
+        ax.scatter(
+            non_direct_df[dose_variable],
             non_direct_df["y"],
             facecolors="grey",
             edgecolors="grey",
             alpha=0.3,
             label="Other comparison",
         )
-    # Content string with betas
-    betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
-    content_string = ""
-    for idx in np.arange(len(cwmodel.cov_models)):
-        cov = cwmodel.cov_models[idx].cov_name
-        knots_slices = lst_slices[idx]
-        content_string += f"{cov}: {betas[knots_slices]}; "
-    # Plot title
-    if plot_note is not None:
-        plt.title(content_string, fontsize=10)
-        plt.suptitle(plot_note, y=1.01, fontsize=12)
-    else:
-        plt.title(content_string, fontsize=10)
-    plt.legend(loc="upper left")
 
-    for knot in knots:
-        plt.axvline(knot, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
-    # Save plots
-    if write_file:
-        assert plots_dir is not None, "plots_dir is not specified!"
-        outfile = os.path.join(plots_dir, f"{file_name}.pdf")
-        plt.savefig(outfile, orientation="landscape", bbox_inches="tight")
-        print(f"Dose response plot saved at {outfile}")
-    else:
-        plt.show()
-    plt.close()
+    # Plot title
+    ax.set_title(title, fontsize=10)
+    if plot_note is not None:
+        fig.suptitle(plot_note, y=1.01, fontsize=fontsize["title"])
+
+    ax.legend(loc="upper left")
+
+    if knots is not None:
+        for x in knots:
+            plt.axvline(x, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
+
+    return fig
+
+
+def _get_title(obs_method: str, cwmodel: CWModel) -> str:
+    """Get title of the figure, consists of beta values for each covariate.
+
+    Parameters
+    ----------
+    obs_method : str
+        Alternative definition or method intended to be plotted.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+
+    Returns
+    -------
+    str
+        Title of the figure.
+
+    """
+    var_sizes = [cov_model.num_vars for cov_model in cwmodel.cov_models]
+    cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
+
+    beta = cwmodel.fixed_vars[obs_method]
+    beta_dict = dict(zip(cov_names, np.split(beta, np.cumsum(var_sizes[:-1]))))
+
+    for key, value in beta_dict.items():
+        value = list(value)
+        if len(value) == 1:
+            beta_dict[key] = value[0]
+
+    title = "; ".join([f"{key}: {value}" for key, value in beta_dict.items()])
+    return title
+
+
+def _get_knots(dose_variable: str, cwmodel: CWModel) -> list[float] | None:
+    """Get the potential spline knots placement.
+
+    Parameters
+    ----------
+    dose_variable : str
+        Dose variable name.
+    cwmodel : CWModel, optional
+        Fitted CrossWalk model object.
+
+    Returns
+    -------
+    str, optional
+        Knots placement of the dose variable. If dose variable does not have a
+        spline, this function will return None.
+
+    """
+    cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
+    cov_model = cwmodel.cov_models[cov_names.index(dose_variable)]
+    if cov_model.spline is None:
+        return None
+    return list(cov_model.spline.knots)
 
 
 def funnel_plot(
