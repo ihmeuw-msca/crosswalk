@@ -180,6 +180,9 @@ def _plot_dose_response_curve(
     gold_dorm: str,
     point_data: pd.DataFrame,
     curve_data: pd.DataFrame,
+    title: str,
+    plot_note: str | None = None,
+    knots: list[float] | None = None,
     ylim: tuple[float, float] | None = None,
 ) -> plt.Figure:
     # plot
@@ -221,19 +224,20 @@ def _plot_dose_response_curve(
     ax.set_ylabel("Effect size", fontsize=10)
 
     # other comparison
-    non_direct_df = point_data.loc[
-        (point_data.dorm_ref != gold_dorm) | (point_data.dorm_alt != obs_method)
-    ]
+    non_direct_df = point_data.query(
+        f"(dorm_ref != '{gold_dorm}') | (dorm_alt != '{obs_method}')"
+    )
     # direct comparison
-    plot_data_df = point_data.loc[
-        (point_data.dorm_ref == gold_dorm) & (point_data.dorm_alt == obs_method)
-    ]
+    plot_data_df = point_data.query(
+        f"(dorm_ref == '{gold_dorm}') & (dorm_alt == '{obs_method}')"
+    )
 
     for key, value in plot_key.items():
+        df_sub = plot_data_df.query(f"plot_guide == '{key}'")
         ax.scatter(
-            plot_data_df.loc[plot_data_df.plot_guide == key, f"{dose_variable}"],
-            plot_data_df.loc[plot_data_df.plot_guide == key, "y"],
-            s=plot_data_df.loc[plot_data_df.plot_guide == key, "size_var"],
+            df_sub[dose_variable],
+            df_sub["y"],
+            s=df_sub["size_var"],
             marker=value[0],
             facecolors=value[1],
             edgecolors=value[2],
@@ -244,33 +248,50 @@ def _plot_dose_response_curve(
 
     if not non_direct_df.empty:
         ax.scatter(
-            non_direct_df[f"{dose_variable}"],
+            non_direct_df[dose_variable],
             non_direct_df["y"],
             facecolors="grey",
             edgecolors="grey",
             alpha=0.3,
             label="Other comparison",
         )
-    # Content string with betas
-    # TODO: sort this part out
-    # betas = list(np.round(cwmodel.fixed_vars[obs_method], 3))
-    # content_string = ""
-    # for idx in np.arange(len(cwmodel.cov_models)):
-    #     cov = cwmodel.cov_models[idx].cov_name
-    #     knots_slices = lst_slices[idx]
-    #     content_string += f"{cov}: {betas[knots_slices]}; "
-    # # Plot title
-    # if plot_note is not None:
-    #     plt.title(content_string, fontsize=10)
-    #     plt.suptitle(plot_note, y=1.01, fontsize=12)
-    # else:
-    #     plt.title(content_string, fontsize=10)
-    # plt.legend(loc="upper left")
 
-    # for knot in knots:
-    #     plt.axvline(knot, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
+    # Plot title
+    ax.set_title(title, fontsize=10)
+    if plot_note is not None:
+        fig.suptitle(plot_note, y=1.01, fontsize=12)
+
+    ax.legend(loc="upper left")
+
+    if knots is not None:
+        for x in knots:
+            plt.axvline(x, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
 
     return fig
+
+
+def _get_title(obs_method: str, cwmodel: CWModel) -> str:
+    var_sizes = [cov_model.num_vars for cov_model in cwmodel.cov_models]
+    cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
+
+    beta = cwmodel.fixed_vars[obs_method]
+    beta_dict = dict(zip(cov_names, np.split(beta, np.cumsum(var_sizes[:-1]))))
+
+    for key, value in beta_dict.items():
+        value = list(value)
+        if len(value) == 1:
+            beta_dict[key] = value[0]
+
+    title = "; ".join([f"{key}: {value}" for key, value in beta_dict.items()])
+    return title
+
+
+def _get_knots(dose_variable: str, cwmodel: CWModel) -> list[float] | None:
+    cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
+    cov_model = cwmodel.cov_models[cov_names.index(dose_variable)]
+    if cov_model.spline is None:
+        return None
+    return list(cov_model.spline.knots)
 
 
 def dose_response_curve(
@@ -348,8 +369,18 @@ def dose_response_curve(
     )
 
     # Plot dose response curve
+    title = _get_title(obs_method, cwmodel)
+    knots = _get_knots(dose_variable, cwmodel)
     fig = _plot_dose_response_curve(
-        dose_variable, obs_method, cwmodel.gold_dorm, point_data, curve_data, ylim
+        dose_variable,
+        obs_method,
+        cwmodel.gold_dorm,
+        point_data,
+        curve_data,
+        title,
+        plot_note,
+        knots,
+        ylim,
     )
 
     # Save plots
@@ -360,7 +391,7 @@ def dose_response_curve(
         print(f"Dose response plot saved at {outfile}")
     else:
         fig.show()
-    fig.close()
+    plt.close()
 
 
 def funnel_plot(
