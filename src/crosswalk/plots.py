@@ -23,6 +23,7 @@ def dose_response_curve(
     ylim: tuple[float, float] | None = None,
     plot_note: str | None = None,
     write_file: bool = False,
+    plot_layers: list[str] | None = None,
 ):
     """Plot dose response curve. Crosswalk model with spline on dose variable
     to parametrize the difference between the reference and alternative definitions.
@@ -37,7 +38,7 @@ def dose_response_curve(
         List of continuous covariate names.
     binary_variables : dict, optional
         A dictionary to specify the values for binary variables.
-        Options for values: 'median', 'mean', or certain value
+        Options for values: 'median', 'mean', or a specific value.
         Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
     plots_dir : str, optional
         Directory where to save the plot.
@@ -46,18 +47,29 @@ def dose_response_curve(
     cwmodel : CWModel, optional
         Fitted CrossWalk model object.
     from_zero : bool, optional
-        If set to be True, y-axis will start from zero.
+        If set to True, y-axis will start from zero.
     ylim : tuple, optional
-        y-axis bound. E.g. [0, 10]
+        y-axis bounds. E.g. [0, 10].
     file_name : str, optional
         File name for the plot.
     plot_note : str, optional
-        The notes intended to be written on the title.
+        Additional note to be written on the title.
     include_bias : bool, optional
         Whether to include bias or not.
     write_file : bool, optional
-        Specify `True` if the plot is expected to be saved on disk.
-        If True, `plots_dir` should be specified too.
+        Specify True if the plot is expected to be saved on disk.
+        If True, plots_dir should be specified.
+    plot_layers : list[str], optional
+        A list of strings indicating which groups (and in what order) to plot.
+        Allowed values are:
+          - "inlier_inside_funnel"
+          - "inlier_outside_funnel"
+          - "outlier_inside_funnel"
+          - "outlier_outside_funnel"
+          - "other_comparison"
+        The default (build order from background to foreground) is:
+          ["other_comparison", "outlier_outside_funnel",
+           "outlier_inside_funnel", "inlier_outside_funnel", "inlier_inside_funnel"]
 
     """
     # process input
@@ -96,6 +108,7 @@ def dose_response_curve(
         plot_note,
         knots,
         ylim,
+        plot_layers=plot_layers,  # pass along the new parameter
     )
 
     # Save plots
@@ -128,24 +141,22 @@ def _check_cov_alignment(
         List of continuous covariate names.
     binary_variables : dict
         A dictionary to specify the values for binary variables.
-        Options for values: 'median', 'mean', or certain value
-        Example: binary
+        Options for values: 'median', 'mean', or a specific value.
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
 
     Raises
     ------
     ValueError
-        If not all non-dose variables are provided with reference values.
-        If there are any extra variables that are not in the model.
+        If not all non-dose variables are provided with reference values,
+        or if extra variables (not in the model) are specified.
 
     TODO
     ----
-    This can be done in a smarter way
-    - Does not distinguish between continuous and binary variables, we should allow
-      the user pass in the reference values for variables in one dictionary.
-    - We should define default behavior to avoid this error checking, if not specified
-      default to use median. If specify extra, remove it from the list. However
-      this will make the function less transparent, it is up-to-debate.
-
+    This can be done in a smarter way:
+      - Currently continuous and binary variables are treated separately.
+        We could allow the user to pass reference values for all variables in one dictionary.
+      - We might define default behavior (e.g., defaulting to median) to avoid error checking,
+        though this would make the function less transparent.
     """
     cwmodel_covs = [cov_model.cov_name for cov_model in cwmodel.cov_models]
     specified_covs = (
@@ -157,10 +168,10 @@ def _check_cov_alignment(
         missing_covs = set(cwmodel_covs) - set(specified_covs)
         extra_covs = set(specified_covs) - set(cwmodel_covs)
         raise ValueError(
-            "Must provide reference values for all variables in the model, except"
-            "for does variable and intercept."
-            "And must not specify any extra variables that are not in the model."
-            f"Current missing covariates: {missing_covs}."
+            "Must provide reference values for all variables in the model, except "
+            "for dose variable and intercept. "
+            "And must not specify any extra variables that are not in the model. "
+            f"Current missing covariates: {missing_covs}. "
             f"Current extra covariates: {extra_covs}."
         )
 
@@ -174,16 +185,15 @@ def _get_point_data(
     ----------
     dose_variable : str
         Dose variable name.
-    cwdata : CWData, optional
+    cwdata : CWData
         CrossWalk data object.
-    cwmodel : CWModel, optional
+    cwmodel : CWModel
         Fitted CrossWalk model object.
 
     Returns
     -------
     DataFrame
-        Data frame contains positions of the points to be plotted.
-
+        Data frame containing positions of the points to be plotted.
     """
     df = cwdata.df.reset_index(drop=True)
     data = pd.DataFrame(
@@ -196,7 +206,6 @@ def _get_point_data(
             "dorm_alt": df[cwdata.col_alt_dorms],
             "dorm_ref": df[cwdata.col_ref_dorms],
             "intercept": 1.0,
-            # bolier variables to use adjust_orig_vals function
             "orig_vals_mean": 0.1,
             "orig_vals_se": 0.1,
         }
@@ -213,18 +222,18 @@ def _get_point_data(
         orig_vals_se="orig_vals_se",
     )["pred_diff_mean"]
 
-    # determine points inside/outside funnel
+    # Determine points inside/outside funnel.
     data["position"] = "inside funnel"
     data.loc[data.eval("abs(y - y_pred) > 1.96 * se"), "position"] = "outside funnel"
 
-    # get inlier/outlier
+    # Get inlier/outlier classification.
     data["trim"] = "inlier"
     data.loc[data.eval("w < 0.6"), "trim"] = "outlier"
 
-    # get plot guide
+    # Create plot guide (for direct comparisons).
     data["plot_guide"] = data["trim"] + ", " + data["position"]
 
-    # get scaled marker size
+    # Calculate scaled marker size.
     data["size_var"] = data.eval("1.0 / se")
     data["size_var"] = data.eval("300 * size_var / size_var.max()")
 
@@ -249,33 +258,32 @@ def _get_curve_data(
         Dose variable name.
     obs_method : str
         Alternative definition or method intended to be plotted.
-    continuous_variables (list):
-            List of continuous covariate names.
-    binary_variables (dict):
+    continuous_variables : list
+        List of continuous covariate names.
+    binary_variables : dict
         A dictionary to specify the values for binary variables.
-        Options for values: 'median', 'mean', or certain value
+        Options for values: 'median', 'mean', or a specific value.
         Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
-    cwdata : CWData, optional
+    cwdata : CWData
         CrossWalk data object.
-    cwmodel : CWModel, optional
+    cwmodel : CWModel
         Fitted CrossWalk model object.
-    from_zero : bool, optional
-        If set to be True, y-axis will start from zero.
-    include_bias : bool, optional
+    from_zero : bool
+        If True, y-axis will start from zero.
+    include_bias : bool
         Whether to include bias or not.
 
     Returns
     -------
     DataFrame
-        Data frame contains curve information, including the uncertainty.
-
+        Data frame containing curve information, including uncertainty.
     """
     df = cwdata.df.copy()
-    # check for knots
+    # Determine minimum and maximum dose.
     min_cov = 0.0 if from_zero else df[dose_variable].min()
     max_cov = cwdata.df[dose_variable].max()
 
-    # construct dataframe for prediction
+    # Construct a dataframe for prediction.
     cov_range = max_cov - min_cov
     dose_grid = np.arange(min_cov, max_cov + cov_range * 0.001, cov_range / 1000)
 
@@ -284,7 +292,6 @@ def _get_curve_data(
             dose_variable: dose_grid,
             "obs_method": obs_method,
             "intercept": 1.0,
-            # bolier variables to use adjust_orig_vals function
             "orig_vals_mean": 0.1,
             "orig_vals_se": 0.1,
         }
@@ -330,6 +337,7 @@ def _plot_dose_response_curve(
     plot_note: str | None = None,
     knots: list[float] | None = None,
     ylim: tuple[float, float] | None = None,
+    plot_layers: list[str] | None = None,
 ) -> plt.Figure:
     """Create dose response curve.
 
@@ -342,25 +350,33 @@ def _plot_dose_response_curve(
     gold_dorm : str
         Gold standard definition or method.
     point_data : DataFrame
-        Point position data.
+        Data frame containing point positions.
     curve_data : DataFrame
-        Dose response curve and its uncertainty data.
+        Data frame containing the dose response curve and uncertainty.
     title : str
         Title of the figure.
-    plot_note : str
-        Super title of the figure.
+    plot_note : str, optional
+        Extra note to be displayed on the figure.
     knots : list[float], optional
-        Knots placement of the dose variable.
-    ylim : tuple[float, float]
-        Range of the y axis for the figure.
+        Knots placement of the dose variable. If the dose variable does not have a spline,
+        this function will return None.
+    ylim : tuple[float, float], optional
+        y-axis limits.
+    plot_layers : list[str], optional
+        A list of keys specifying which groups to plot and in what order.
+        Allowed keys are:
+          "inlier_inside_funnel", "inlier_outside_funnel",
+          "outlier_inside_funnel", "outlier_outside_funnel",
+          "other_comparison"
+        The default (build order from background to foreground) is:
+          ["other_comparison", "outlier_outside_funnel",
+           "outlier_inside_funnel", "inlier_outside_funnel", "inlier_inside_funnel"]
 
     Returns
     -------
     Figure
-        Figure object for saving the figure.
-
+        Matplotlib figure object for saving or displaying.
     """
-    # plot
     sns.set_style("whitegrid")
     plt.rcParams["axes.edgecolor"] = "0.15"
     plt.rcParams["axes.linewidth"] = 0.5
@@ -369,17 +385,7 @@ def _plot_dose_response_curve(
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.tick_params(labelsize=fontsize["body"])
 
-    plot_key = {
-        "inlier, inside funnel": dict(
-            marker="o", facecolors="seagreen", edgecolors="darkgreen"
-        ),
-        "inlier, outside funnel": dict(
-            marker="o", facecolors="coral", edgecolors="firebrick"
-        ),
-        "outlier, inside funnel": dict(marker="x", facecolors="darkgreen"),
-        "outlier, outside funnel": dict(marker="x", facecolors="firebrick"),
-    }
-
+    # Plot the uncertainty regions and the main curve.
     ax.fill_between(
         curve_data[dose_variable],
         curve_data["y_lo"],
@@ -395,74 +401,151 @@ def _plot_dose_response_curve(
         color="darkgrey",
     )
     ax.plot(
-        curve_data[dose_variable], curve_data["y_mean"], color="black", linewidth=0.75
+        curve_data[dose_variable],
+        curve_data["y_mean"],
+        color="black",
+        linewidth=0.75,
     )
-    # plt.xlim([min_cov, max_cov])
+
+    # Extend the x-axis by 10% on either side.
+    all_x = np.concatenate(
+        [curve_data[dose_variable].values, point_data[dose_variable].values]
+    )
+    xmin, xmax = all_x.min(), all_x.max()
+    xrange = xmax - xmin
+    ax.set_xlim(xmin - 0.1 * xrange, xmax + 0.1 * xrange)
+
     if ylim is not None:
         ax.set_ylim(ylim)
     ax.set_xlabel("Exposure", fontsize=fontsize["body"])
     ax.set_ylabel("Effect size", fontsize=fontsize["body"])
 
-    # other comparison
-    non_direct_df = point_data.query(
-        f"(dorm_ref != '{gold_dorm}') | (dorm_alt != '{obs_method}')"
-    )
-    # direct comparison
+    # Prepare data for plotting:
+    # Direct comparisons (points where dorm_ref == gold_dorm and dorm_alt == obs_method)
     plot_data_df = point_data.query(
         f"(dorm_ref == '{gold_dorm}') & (dorm_alt == '{obs_method}')"
     )
+    # Other comparison points.
+    non_direct_df = point_data.query(
+        f"(dorm_ref != '{gold_dorm}') | (dorm_alt != '{obs_method}')"
+    )
 
-    for key, value in plot_key.items():
-        df_sub = plot_data_df.query(f"plot_guide == '{key}'")
-        ax.scatter(
-            df_sub[dose_variable],
-            df_sub["y"],
-            s=df_sub["size_var"],
-            linewidth=0.6,
-            alpha=0.6,
-            label=key,
-            **value,
-        )
+    # Define mapping for each layer.
+    layer_mapping = {
+        "inlier_inside_funnel": {
+            "df": plot_data_df.query("plot_guide == 'inlier, inside funnel'"),
+            "scatter_kwargs": dict(
+                marker="o",
+                facecolors="seagreen",
+                edgecolors="darkgreen",
+                linewidth=0.6,
+                alpha=0.6,
+                label="Inlier, inside funnel",
+            ),
+        },
+        "inlier_outside_funnel": {
+            "df": plot_data_df.query("plot_guide == 'inlier, outside funnel'"),
+            "scatter_kwargs": dict(
+                marker="o",
+                facecolors="coral",
+                edgecolors="firebrick",
+                linewidth=0.6,
+                alpha=0.6,
+                label="Inlier, outside funnel",
+            ),
+        },
+        "outlier_inside_funnel": {
+            "df": plot_data_df.query("plot_guide == 'outlier, inside funnel'"),
+            "scatter_kwargs": dict(
+                marker="x",
+                facecolors="darkgreen",
+                linewidth=0.6,
+                alpha=0.6,
+                label="Outlier, inside funnel",
+            ),
+        },
+        "outlier_outside_funnel": {
+            "df": plot_data_df.query("plot_guide == 'outlier, outside funnel'"),
+            "scatter_kwargs": dict(
+                marker="x",
+                facecolors="firebrick",
+                linewidth=0.6,
+                alpha=0.6,
+                label="Outlier, outside funnel",
+            ),
+        },
+        "other_comparison": {
+            "df": non_direct_df,
+            "scatter_kwargs": dict(
+                marker="o",
+                facecolors="grey",
+                edgecolors="grey",
+                alpha=0.3,
+                label="Other comparison",
+            ),
+        },
+    }
 
-    if not non_direct_df.empty:
-        ax.scatter(
-            non_direct_df[dose_variable],
-            non_direct_df["y"],
-            facecolors="grey",
-            edgecolors="grey",
-            alpha=0.3,
-            label="Other comparison",
-        )
+    # Set default order if not provided.
+    if plot_layers is None:
+        plot_layers = [
+            "other_comparison",
+            "outlier_outside_funnel",
+            "outlier_inside_funnel",
+            "inlier_outside_funnel",
+            "inlier_inside_funnel",
+        ]
+    # Draw layers in the provided order (background to foreground).
+    for layer in plot_layers:
+        layer_info = layer_mapping.get(layer)
+        if layer_info is None:
+            continue  # skip unknown keys
+        df_layer = layer_info["df"]
+        if df_layer.empty:
+            continue
+        # For direct comparisons, use the scaled marker sizes.
+        kwargs = layer_info["scatter_kwargs"].copy()
+        if layer != "other_comparison":
+            ax.scatter(
+                df_layer[dose_variable],
+                df_layer["y"],
+                s=df_layer["size_var"],
+                **kwargs,
+            )
+        else:
+            ax.scatter(
+                df_layer[dose_variable],
+                df_layer["y"],
+                **kwargs,
+            )
 
-    # Plot title
-    ax.set_title(title, fontsize=10)
-    if plot_note is not None:
-        fig.suptitle(plot_note, y=1.01, fontsize=fontsize["title"])
-
-    ax.legend(loc="upper left")
-
+    # Optionally add vertical lines for knots.
     if knots is not None:
         for x in knots:
             plt.axvline(x, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
+
+    # Set title and super-title (plot note).
+    ax.set_title(title, fontsize=10)
+    if plot_note is not None:
+        fig.suptitle(plot_note, y=1.01, fontsize=fontsize["title"])
 
     return fig
 
 
 def _get_title(obs_method: str, cwmodel: CWModel) -> str:
-    """Get title of the figure, consists of beta values for each covariate.
+    """Get title of the figure, consisting of beta values for each covariate.
 
     Parameters
     ----------
     obs_method : str
         Alternative definition or method intended to be plotted.
-    cwmodel : CWModel, optional
+    cwmodel : CWModel
         Fitted CrossWalk model object.
 
     Returns
     -------
     str
         Title of the figure.
-
     """
     var_sizes = [cov_model.num_vars for cov_model in cwmodel.cov_models]
     cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
@@ -486,15 +569,14 @@ def _get_knots(dose_variable: str, cwmodel: CWModel) -> list[float] | None:
     ----------
     dose_variable : str
         Dose variable name.
-    cwmodel : CWModel, optional
+    cwmodel : CWModel
         Fitted CrossWalk model object.
 
     Returns
     -------
-    str, optional
-        Knots placement of the dose variable. If dose variable does not have a
+    list[float] or None
+        Knots placement of the dose variable. If the dose variable does not have a
         spline, this function will return None.
-
     """
     cov_names = [cov_model.cov_name for cov_model in cwmodel.cov_models]
     cov_model = cwmodel.cov_models[cov_names.index(dose_variable)]
@@ -527,20 +609,19 @@ def funnel_plot(
             List of continuous covariate names.
         binary_variables (dict):
             A dictionary to specify the values for binary variables.
-            Options for values: 'median', 'mean', or certain value
+            Options for values: 'median', 'mean', or a specific value.
             Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}
         plots_dir (str):
             Directory where to save the plot.
         file_name (str):
             File name for the plot.
         plot_note (str):
-            The notes intended to be written on the title.
+            Additional note to be written on the title.
         include_bias (bool):
             Whether to include bias or not.
         write_file (bool):
-            Specify `True` if the plot is expected to be saved on disk.
-            If True, `plots_dir` should be specified too.
-
+            Specify True if the plot is expected to be saved on disk.
+            If True, plots_dir should be specified.
     """
     assert obs_method in cwdata.unique_alt_dorms, f"{obs_method} not in alt_dorms!"
 
@@ -554,18 +635,18 @@ def funnel_plot(
         }
     )
 
-    # determine points inside/outside funnel
+    # Determine points inside/outside funnel.
     data_df["position"] = "other comparison"
     data_df.loc[
         (data_df.dorm_ref == cwmodel.gold_dorm) & (data_df.dorm_alt == obs_method),
         "position",
     ] = "direct comparison"
 
-    # get inlier/outlier
+    # Get inlier/outlier classification.
     data_df.loc[data_df.w >= 0.6, "trim"] = "inlier"
     data_df.loc[data_df.w < 0.6, "trim"] = "outlier"
 
-    # get plot guide
+    # Create plot guide.
     data_df["plot_guide"] = data_df["trim"] + ", " + data_df["position"]
     plot_key = {
         "inlier, other comparison": ("o", "grey", "grey", 0.3),
@@ -574,15 +655,15 @@ def funnel_plot(
         "outlier, direct comparison": ("x", "firebrick", "firebrick", 0.75),
     }
 
-    # construct dataframe for prediction, prev and prev_se don't matter.
+    # Construct dataframe for prediction; prev and prev_se don't matter.
     pred_df = pd.DataFrame(
         {"obs_method": obs_method, "prev": 0.1, "prev_se": 0.1}, index=[0]
     )
-    # if it's continuous variable, take median
+    # For continuous variables, take the median.
     for var in continuous_variables:
         pred_df[var] = np.median(cwdata.covs[var])
 
-    # if binary_variables specified, process binary variables accordingly
+    # Process binary variables accordingly.
     if binary_variables:
         for var in binary_variables.keys():
             value = binary_variables.get(var)
@@ -593,7 +674,7 @@ def funnel_plot(
             else:
                 pred_df[var] = value
 
-    # predict effect
+    # Predict effect.
     y_pred = cwmodel.adjust_orig_vals(
         df=pred_df,
         orig_dorms="obs_method",
@@ -602,17 +683,19 @@ def funnel_plot(
     ).to_numpy()
     y_pred = np.ravel(y_pred)
     y_mean, y_sd = y_pred[2], y_pred[3]
-    # Include random effects
+    # Include random effects.
     y_sd = np.sqrt(y_sd**2 + cwmodel.gamma[0])
 
-    # Statistics in title
+    # Prepare statistics for the title.
     y_lower, y_upper = y_mean - 1.96 * y_sd, y_mean + 1.96 * y_sd
     p_value = utils.p_value(np.array([y_mean]), np.array([y_sd]))[0]
-    content_string = f"Mean effect: {np.round(y_mean, 3)}\
-    (95% CI: {np.round(y_lower, 3)} to {np.round(y_upper, 3)});\
-    p-value: {np.round(p_value, 4)}"
+    content_string = (
+        f"Mean effect: {np.round(y_mean, 3)} "
+        f"(95% CI: {np.round(y_lower, 3)} to {np.round(y_upper, 3)}); "
+        f"p-value: {np.round(p_value, 4)}"
+    )
 
-    # triangle
+    # Draw the triangle.
     max_se = cwdata.obs_se.max()
     se_domain = np.arange(0, max_se * 1.1, max_se / 100)
     se_lower = y_mean - (se_domain * 1.96)
@@ -639,7 +722,7 @@ def funnel_plot(
     plt.ylabel("Standard error", fontsize=10)
     plt.yticks(fontsize=10)
     plt.axvline(0, color="mediumseagreen", alpha=0.75, linewidth=0.75)
-    # Plot inlier and outlier
+    # Plot inlier and outlier points.
     for key, value in plot_key.items():
         plt.plot(
             data_df.loc[data_df.plot_guide == key, "y"],
@@ -656,13 +739,11 @@ def funnel_plot(
 
     plt.legend(loc="upper left", frameon=False)
     plt.gca().invert_yaxis()
-    # Plot title
     if plot_note is not None:
         plt.title(content_string, fontsize=10)
         plt.suptitle(plot_note, y=1.01, fontsize=12)
     else:
         plt.title(content_string, fontsize=10)
-    # Save plots
     if write_file:
         assert plots_dir is not None, "plots_dir is not specified!"
         outfile = os.path.join(plots_dir, file_name + ".pdf")

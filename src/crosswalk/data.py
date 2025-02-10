@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    data
-    ~~~~
+data
+~~~~
 
-    `data` module of the `crosswalk` package.
+`data` module of the `crosswalk` package.
 """
+
 import numpy as np
 import pandas as pd
 import warnings
