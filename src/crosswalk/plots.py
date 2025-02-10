@@ -153,7 +153,7 @@ def _check_cov_alignment(
     TODO
     ----
     This can be done in a smarter way:
-      - Currently continuous and binary variables are treated separately.
+      - Does not distinguish between continuous and binary variables.
         We could allow the user to pass reference values for all variables in one dictionary.
       - We might define default behavior (e.g., defaulting to median) to avoid error checking,
         though this would make the function less transparent.
