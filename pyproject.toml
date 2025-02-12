@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crosswalk"
-version = "0.1.0"
+version = "0.1.1"
 description = "A package for value alignment across sources"
 readme = "README.md"
 requires-python = ">=3.10"
