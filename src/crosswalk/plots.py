@@ -447,8 +447,8 @@ def _plot_dose_response_curve(
             "df": plot_data_df.query("plot_guide == 'inlier, outside funnel'"),
             "scatter_kwargs": dict(
                 marker="o",
-                facecolors="coral",
-                edgecolors="firebrick",
+                facecolors="red",
+                edgecolors="red",
                 linewidth=0.6,
                 alpha=0.6,
                 label="Inlier, outside funnel",
@@ -459,6 +459,7 @@ def _plot_dose_response_curve(
             "scatter_kwargs": dict(
                 marker="x",
                 facecolors="darkgreen",
+                edgecolors="darkgreen",
                 linewidth=0.6,
                 alpha=0.6,
                 label="Outlier, inside funnel",
@@ -469,6 +470,7 @@ def _plot_dose_response_curve(
             "scatter_kwargs": dict(
                 marker="x",
                 facecolors="firebrick",
+                edgecolors="firebrick",
                 linewidth=0.6,
                 alpha=0.6,
                 label="Outlier, outside funnel",
@@ -528,6 +530,9 @@ def _plot_dose_response_curve(
     ax.set_title(title, fontsize=10)
     if plot_note is not None:
         fig.suptitle(plot_note, y=1.01, fontsize=fontsize["title"])
+
+    # Add legend of all graph elements in the upper right corner.
+    ax.legend(loc="upper right")
 
     return fig
 
