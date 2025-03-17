@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    model
-    ~~~~~
+model
+~~~~~
 
-    `model` module of the `crosswalk` package.
+`model` module of the `crosswalk` package.
 """
+
 import warnings
 from typing import List
 
@@ -482,11 +483,12 @@ class CWModel:
             c=cvec,
             inlier_percentage=inlier_pct,
         )
-        self.beta, self.gamma, self.w = self.lt.fitModel(
-            inner_print_level=5,
-            inner_max_iter=max_iter,
-            outer_max_iter=outer_max_iter,
-            outer_step_size=outer_step_size,
+        # Updating for LimeTr update with new solver
+        self.beta, self.gamma, self.w = self.lt.fit_model(
+            # inner_print_level=5,
+            # inner_max_iter=max_iter,
+            # outer_max_iter=outer_max_iter,
+            # outer_step_size=outer_step_size,
         )
 
         self.fixed_vars = {var: self.beta[self.var_idx[var]] for var in self.vars}

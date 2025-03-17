@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    test_model
-    ~~~~~~~~~~
+test_model
+~~~~~~~~~~
 
-    Test `model` module for the `crosswalk` package.
+Test `model` module for the `crosswalk` package.
 """
+
 import numpy as np
 import pandas as pd
 import pytest

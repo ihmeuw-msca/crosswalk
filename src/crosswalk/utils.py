@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-    utils
-    ~~~~~
-    `utils` module for the `crosswalk` package, provides utility functions.
+utils
+~~~~~
+`utils` module for the `crosswalk` package, provides utility functions.
 """
+
 from typing import List, Iterable, Union
 import numpy as np
 from scipy.stats import norm
