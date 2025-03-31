@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    model
-    ~~~~~
+model
+~~~~~
 
-    `model` module of the `crosswalk` package.
+`model` module of the `crosswalk` package.
 """
+
 import warnings
 from typing import List
 
@@ -13,6 +14,10 @@ import numpy as np
 import pandas as pd
 from limetr import LimeTr
 from xspline import XSpline
+from limetr.variable import FeVariable, ReVariable
+from limetr.linalg import LinearMapping
+from limetr.data import Data
+from limetr.stats import UniformPrior, GaussianPrior
 
 from . import data, utils
 
@@ -412,6 +417,7 @@ class CWModel:
         else:
             return mat
 
+    # TODO: add functionality to include outer_step_size (needed?)
     def fit(
         self, max_iter=100, inlier_pct=1.0, outer_max_iter=100, outer_step_size=1.0
     ):
@@ -428,87 +434,63 @@ class CWModel:
                 Step size of the trimming problem, the larger the step size the faster it will converge,
                 and the less quality of trimming it will guarantee.
         """
-        # dimensions for limetr
-        n = self.cwdata.study_sizes
-        if n.size == 0:
-            n = np.full(self.cwdata.num_obs, 1)
-        k_beta = self.num_vars
-        k_gamma = 1
-        y = self.cwdata.obs
-        s = self.cwdata.obs_se
-        x = self.design_mat
-        z = np.ones((self.cwdata.num_obs, 1))
-
-        uprior = np.hstack((self.prior_beta_uniform, self.prior_gamma_uniform[:, None]))
-        gprior = np.hstack(
-            (self.prior_beta_gaussian, self.prior_gamma_gaussian[:, None])
+        # Create Data object for LimeTr
+        data_obj = Data(
+            obs=self.cwdata.obs,
+            obs_se=self.cwdata.obs_se,
+            group_sizes=self.cwdata.study_sizes
+            if self.cwdata.study_sizes.size > 0
+            else np.ones(self.cwdata.num_obs, dtype=int),
         )
 
-        if self.constraint_mat is None:
-            cfun = None
-            jcfun = None
-            cvec = None
-        else:
-            num_constraints = self.constraint_mat.shape[0]
-            cmat = np.hstack((self.constraint_mat, np.zeros((num_constraints, 1))))
+        # Create linear mapping for fixed effects
+        fe_mapping = LinearMapping(mat=self.design_mat)
 
-            cvec = np.array([[-np.inf] * num_constraints, [0.0] * num_constraints])
-
-            def cfun(var):
-                return cmat.dot(var)
-
-            def jcfun(var):
-                return cmat
-
-        def fun(var):
-            return x.dot(var)
-
-        def jfun(beta):
-            return x
-
-        self.lt = LimeTr(
-            n,
-            k_beta,
-            k_gamma,
-            y,
-            fun,
-            jfun,
-            z,
-            S=s,
-            gprior=gprior,
-            uprior=uprior,
-            C=cfun,
-            JC=jcfun,
-            c=cvec,
-            inlier_percentage=inlier_pct,
+        # Create FeVariable object with priors
+        fe_uprior = UniformPrior(
+            lb=self.prior_beta_uniform[0], ub=self.prior_beta_uniform[1]
         )
-        self.beta, self.gamma, self.w = self.lt.fitModel(
-            inner_print_level=5,
-            inner_max_iter=max_iter,
-            outer_max_iter=outer_max_iter,
-            outer_step_size=outer_step_size,
+        fe_gprior = GaussianPrior(
+            mean=self.prior_beta_gaussian[0], sd=self.prior_beta_gaussian[1]
         )
+        fevar = FeVariable(mapping=fe_mapping, priors=[fe_uprior, fe_gprior])
+
+        # Create linear mapping for random effects
+        re_mapping = LinearMapping(mat=np.ones((self.cwdata.num_obs, 1)))
+
+        # Create ReVariable object with priors
+        re_uprior = UniformPrior(
+            lb=self.prior_gamma_uniform[0], ub=self.prior_gamma_uniform[1]
+        )
+        re_gprior = GaussianPrior(
+            mean=self.prior_gamma_gaussian[0], sd=self.prior_gamma_gaussian[1]
+        )
+        revar = ReVariable(mapping=re_mapping, priors=[re_uprior, re_gprior])
+
+        # Create and fit LimeTr model
+        self.lt = LimeTr(data=data_obj, fevar=fevar, revar=revar, inlier_pct=inlier_pct)
+
+        # Update options for trust-constr method
+        options = {"maxiter": max_iter, "xtol": 1e-8, "gtol": 1e-8, "barrier_tol": 1e-8}
+
+        self.lt.fit_model(trim_steps=outer_max_iter, options=options)
+
+        # Extract results
+        result = self.lt.soln
+        self.beta = result["beta"]
+        self.gamma = result["gamma"]
+        self.beta_sd = result["beta_sd"]
 
         self.fixed_vars = {var: self.beta[self.var_idx[var]] for var in self.vars}
+
         if self.use_random_intercept:
-            u = self.lt.estimateRE()
+            random_effects = result["random_effects"]
             self.random_vars = {
-                sid: u[i] for i, sid in enumerate(self.cwdata.unique_study_id)
+                sid: random_effects[i]
+                for i, sid in enumerate(self.cwdata.unique_study_id)
             }
         else:
             self.random_vars = dict()
-
-        # compute the posterior distribution of beta
-        hessian = self.get_beta_hessian()
-        unconstrained_id = np.hstack(
-            [
-                np.arange(self.lt.k_beta)[self.var_idx[dorm]]
-                for dorm in self.cwdata.unique_dorms
-                if dorm != self.gold_dorm
-            ]
-        )
-        self.beta_sd = np.zeros(self.lt.k_beta)
-        self.beta_sd[unconstrained_id] = np.sqrt(np.diag(np.linalg.inv(hessian)))
 
     def get_beta_hessian(self) -> np.ndarray:
         # compute the posterior distribution of beta
@@ -547,31 +529,34 @@ class CWModel:
         """
         # column of dorms
         dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
-        cov_names = self.get_cov_names()
-        cov_names *= self.cwdata.num_dorms
+        cov_names = self.get_cov_names() * self.cwdata.num_dorms
 
-        # create data frame
-        df = pd.DataFrame(
-            {
-                "dorms": dorms,
-                "cov_names": cov_names,
-                "beta": self.beta,
-                "beta_sd": self.beta_sd,
-            }
-        )
+        # Get solution from LimeTr
+        result = self.lt.soln
+
+        # Create base dataframe
+        df_dict = {
+            "dorms": dorms,
+            "cov_names": cov_names,
+            "beta": self.beta,
+            "beta_sd": self.beta_sd,
+        }
+
         if self.use_random_intercept:
-            gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
-            re = np.hstack(
-                (
-                    self.lt.u,
-                    np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan),
-                )
-            )
-            df["gamma"] = gamma
-            for i, study_id in enumerate(self.cwdata.unique_study_id):
-                df[study_id] = re[i]
+            # Get gamma from solution
+            gamma = np.hstack((result["gamma"], np.full(self.num_vars - 1, np.nan)))
+            df_dict["gamma"] = gamma
 
-        return df
+            # Get random effects from solution and create a dictionary for all study columns
+            re = result["random_effects"]
+            study_dict = {
+                study_id: np.hstack((re[i], np.full(self.num_vars - 1, np.nan)))
+                for i, study_id in enumerate(self.cwdata.unique_study_id)
+            }
+            df_dict.update(study_dict)
+
+        # Create dataframe all at once
+        return pd.DataFrame(df_dict)
 
     def save_result_df(self, folder: str, filename: str = "result.csv"):
         """Save result.

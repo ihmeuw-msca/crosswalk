@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crosswalk"
-version = "0.0.1"
+version = "0.1.0"
 description = "A package for value alignment across sources"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ authors = [
 ]
 dependencies = [
     "pandas",
-    "limetr<0.1.0",
+    "limetr",
     "seaborn",
     "xspline==0.0.7",
 ]
