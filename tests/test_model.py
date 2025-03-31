@@ -83,7 +83,12 @@ def test_adjust_orig_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     cwmodel = model.CWModel(
         cwdata, obs_type, cov_models=cov_models, gold_dorm=gold_dorm
     )
-    cwmodel.fit()
+    cwmodel.fit(
+        max_iter=100,
+        inlier_pct=1.0,
+        outer_max_iter=100,
+        outer_step_size=1.0
+    )
     new_df = pd.DataFrame(
         {
             "dorms": np.array([alt_dorm] * cwdata.num_obs),

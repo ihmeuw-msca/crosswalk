@@ -17,6 +17,7 @@ dependencies = [
     "limetr",
     "seaborn",
     "xspline==0.0.7",
+    "threadpoolctl",
 ]
 
 [project.optional-dependencies]
