@@ -156,7 +156,7 @@ class CWData:
 
     def check(self):
         """Check inputs type, shape and value."""
-        # 1. obs_se validation
+        # obs_se validation
         if self.obs is not None and not utils.is_numerical_array(
             self.obs, shape=(self.num_obs,)
         ):
@@ -176,7 +176,7 @@ class CWData:
                 "All values in 'obs_se' must be strictly greater than 0.0."
             )
 
-        # 2. alt_dorms and ref_dorms validation
+        # alt_dorms and ref_dorms validation
         if not isinstance(self.alt_dorms, list):
             raise TypeError(
                 f"Expected 'alt_dorms' to be a list, got {type(self.alt_dorms).__name__}."
@@ -185,7 +185,6 @@ class CWData:
             raise TypeError(
                 f"Expected 'ref_dorms' to be a list, got {type(self.ref_dorms).__name__}."
             )
-
         if len(self.alt_dorms) != self.num_obs:
             raise ValueError(
                 f"Expected 'alt_dorms' to have length {self.num_obs}, got {len(self.alt_dorms)}."
@@ -195,7 +194,7 @@ class CWData:
                 f"Expected 'ref_dorms' to have length {self.num_obs}, got {len(self.ref_dorms)}."
             )
 
-        # 3. covs validation
+        # covs validation
         if not isinstance(self.covs, pd.DataFrame):
             raise TypeError(
                 f"Expected 'covs' to be a pandas DataFrame, got {type(self.covs).__name__}."
@@ -205,13 +204,10 @@ class CWData:
                 f"Expected 'covs' to have {self.num_covs} columns, got {self.covs.shape[1]}."
             )
 
-        # 4. study_id validation
         if self.study_id is not None and self.study_id.shape != (self.num_obs,):
             raise ValueError(
                 f"Expected 'study_id' to have shape ({self.num_obs},), got {self.study_id.shape}."
             )
-
-        # 5. data_id validation
         if len(set(self.data_id)) != self.num_obs:
             raise ValueError("data_id has to be unique for each data point.")
 
