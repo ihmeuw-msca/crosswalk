@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-    utils
-    ~~~~~
-    `utils` module for the `crosswalk` package, provides utility functions.
+utils
+~~~~~
+`utils` module for the `crosswalk` package, provides utility functions.
 """
-from typing import List, Iterable, Union
+
+from typing import List, Union
+
 import numpy as np
 from scipy.stats import norm
 
@@ -128,8 +130,12 @@ def log_to_linear(mean, sd):
         tuple{numpy.ndarray, numpy.ndarray}:
             Mean and standard deviation in linear space.
     """
-    assert mean.size == sd.size
-    assert (sd >= 0.0).all()
+    if mean.size != sd.size:
+        raise ValueError(
+            f"size of mean and sd must be equal. They are {mean.size} and {sd.size} respectively"
+        )
+    if (sd < 0.0).any():
+        raise ValueError("negative sd is forbidden for this operation")
     linear_mean = np.exp(mean)
     linear_sd = np.exp(mean) * sd
 
@@ -150,9 +156,14 @@ def linear_to_log(mean, sd):
         tuple{numpy.ndarray, numpy.ndarray}:
             Mean and standard deviation in log space.
     """
-    assert mean.size == sd.size
-    assert (mean > 0.0).all()
-    assert (sd >= 0.0).all()
+    if mean.size != sd.size:
+        raise ValueError(
+            f"size of mean and sd must be equal. They are {mean.size} and {sd.size} respectively"
+        )
+    if (mean <= 0).any():
+        raise ValueError("mean <= 0 is forbidden for this operation")
+    if (sd < 0.0).any():
+        raise ValueError("negative sd is forbidden for this operation")
     log_mean = np.log(mean)
     log_sd = sd / mean
 
@@ -173,8 +184,12 @@ def logit_to_linear(mean, sd):
         tuple{numpy.ndarray, numpy.ndarray}:
             Mean and standard deviation in linear space.
     """
-    assert mean.size == sd.size
-    assert (sd >= 0.0).all()
+    if mean.size != sd.size:
+        raise ValueError(
+            f"size of mean and sd must be equal. They are {mean.size} and {sd.size} respectively"
+        )
+    if (sd < 0).any():
+        raise ValueError("negative sd is forbidden for this operation")
     linear_mean = 1.0 / (1.0 + np.exp(-mean))
     linear_sd = (np.exp(mean) / (1.0 + np.exp(mean)) ** 2) * sd
 
@@ -195,9 +210,14 @@ def linear_to_logit(mean, sd):
         tuple{numpy.ndarray, numpy.ndarray}:
             Mean and standard deviation in logit space.
     """
-    assert mean.size == sd.size
-    assert ((mean > 0.0) & (mean < 1.0)).all()
-    assert (sd >= 0.0).all()
+    if mean.size != sd.size:
+        raise ValueError(
+            f"size of mean and sd must be equal. They are {mean.size} and {sd.size} respectively"
+        )
+    if ((mean <= 0) | (mean >= 1)).any():
+        raise ValueError("mean must be within (0, 1) for this operation")
+    if (sd < 0.0).any():
+        raise ValueError("negative sd is forbidden for this operation")
     logit_mean = np.log(mean / (1.0 - mean))
     logit_sd = sd / (mean * (1.0 - mean))
 
@@ -267,9 +287,13 @@ def p_value(mean: np.ndarray, std: np.ndarray, one_tailed: bool = False) -> np.n
     Returns:
         np.ndarray: An array of p-values.
     """
-    assert all(std > 0.0), "Standard deviation has to be greater than zero."
+    if (std <= 0.0).any():
+        raise ValueError("standard deviation must be greater than 0")
     if hasattr(mean, "__iter__") and hasattr(std, "__iter__"):
-        assert len(mean) == len(std), "Mean and standard deviation must have same size."
+        if len(mean) != len(std):
+            raise ValueError(
+                f"mean and std must have the same size. they are {len(mean)} and {len(std)} respectively"
+            )
 
     prob = norm.cdf(np.array(mean) / np.array(std))
     pval = np.minimum(prob, 1 - prob)
