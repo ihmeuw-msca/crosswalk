@@ -2,11 +2,11 @@
 Post analysis module
 """
 
-from typing import Tuple
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.stats import norm
+
 from crosswalk import CWData, CWModel
 from crosswalk.scorelator import Scorelator
 
@@ -15,10 +15,10 @@ class PostAnalysis:
     def __init__(
         self,
         model: CWModel,
-        draw_bounds: Tuple[float, float] = (0.05, 0.95),
+        draw_bounds: tuple[float, float] = (0.05, 0.95),
         type: str = "harmful",
         name: str = "unknown",
-    ):
+    ) -> None:
         self.model = model
         self.draw_bounds = draw_bounds
         self.type = type
@@ -55,7 +55,7 @@ class PostAnalysis:
                 name=self.name,
             )
 
-    def process_data(self):
+    def process_data(self) -> None:
         # sort id
         data = self.model.cwdata
         sort_id = np.argsort(self.model.cwdata.data_id)
@@ -75,7 +75,7 @@ class PostAnalysis:
         gamma = self.model.lt.gamma[0]
         self.df["residual_se"] = np.sqrt(obs_se**2 + gamma)
 
-    def detect_pub_bias(self):
+    def detect_pub_bias(self) -> None:
         weighted_residual_all = self.df.residual / self.df.residual_se
         weighted_residual = weighted_residual_all[~self.df.outlier]
 
@@ -93,7 +93,7 @@ class PostAnalysis:
     def has_pub_bias(self) -> bool:
         return self.se_model["pval"] < 0.05
 
-    def adjust_pub_bias(self):
+    def adjust_pub_bias(self) -> None:
         df = self.df[~self.df.outlier].reset_index(drop=True)
         residual = df.residual[~self.df.outlier].to_numpy()
         # compute rank of the absolute residual
