@@ -4,10 +4,11 @@ Scorelator
 
 import os
 from pathlib import Path
-from typing import Tuple, Union
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.stats import norm
+
 from .model import CWModel
 
 
@@ -15,10 +16,10 @@ class Scorelator:
     def __init__(
         self,
         model: CWModel,
-        draw_bounds: Tuple[float, float] = (0.05, 0.95),
+        draw_bounds: tuple[float, float] = (0.05, 0.95),
         type: str = "harmful",
         name: str = "unknown",
-    ):
+    ) -> None:
         self.model = model
         self.draw_bounds = draw_bounds
         self.type = type
@@ -63,15 +64,15 @@ class Scorelator:
 
     def plot_model(
         self,
-        ax=None,
-        title: str = None,
+        ax: plt.Axes = None,
+        title: str | None = None,
         xlabel: str = "definitions or methods",
         ylabel: str = "ln relative risk",
-        xlim: tuple = None,
-        ylim: tuple = None,
-        xscale: str = None,
-        yscale: str = None,
-        folder: Union[str, Path] = None,
+        xlim: tuple | None = None,
+        ylim: tuple | None = None,
+        xscale: str | None = None,
+        yscale: str | None = None,
+        folder: str | Path = None,
     ):
         if ax is None:
             fig = plt.figure(figsize=(4 * (self.model.cwdata.num_dorms - 1), 5))
