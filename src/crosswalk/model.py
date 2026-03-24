@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-    model
-    ~~~~~
+model
+~~~~~
 
-    `model` module of the `crosswalk` package.
+`model` module of the `crosswalk` package.
 """
+
 import warnings
-from typing import List
+from collections.abc import Sequence
 
 import limetr
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from limetr import LimeTr
 from xspline import XSpline
 
 from . import data, utils
+from .data import CWData
 
 
 class CovModel:
@@ -22,33 +25,36 @@ class CovModel:
 
     def __init__(
         self,
-        cov_name,
-        spline=None,
-        spline_monotonicity=None,
-        spline_convexity=None,
-        soln_name=None,
-        prior_beta_uniform=None,
-        prior_beta_gaussian=None,
-    ):
-        """Constructor of the CovModel.
+        cov_name: str,
+        spline: XSpline | None = None,
+        spline_monotonicity: str | None = None,
+        spline_convexity: str | None = None,
+        soln_name: str | None = None,
+        prior_beta_uniform: dict[str, tuple[float, float]] | None = None,
+        prior_beta_gaussian: dict[str, tuple[float, float]] | None = None,
+    ) -> None:
+        """Constructor of the CovModel
 
-        Args:
-            cov_name(str):
-                Corresponding covariate name.
-            spline (XSpline | None, optional):
-                If using spline, passing in spline object.
-            spline_monotonicity (str | None, optional):
-                Spline shape prior, indicate if spline is increasing or
-                decreasing.
-            spline_convexity (str | None, optional):
-                Spline shape prior, indicate if spline is convex or concave.
-            soln_name (str):
-                Name of the corresponding covariates multiplier.
-            prior_beta_uniform (dict | None, optional):
-                Uniform prior for beta, default to None. Otherwise should pass in
-                a dictionary with key as the dorm name and value as the uniform prior.
-            prior_beta_gaussian (dict | None, optional):
-                Same as the ``prior_beta_uniform``
+        Parameters
+        ----------
+        cov_name : str
+            Corresponding covariate name.
+        spline : XSpline | None, optional
+            If using spline, passing in spline object, by default None
+        spline_monotonicity : str | None, optional
+            Spline shape prior, indicate if spline is increasing or decreasing,
+            by default None
+        spline_convexity : str | None, optional
+            Spline shape prior, indicate if spline is convex or concave,
+            by default None
+        soln_name : str | None, optional
+            Name of the corresponding covariates multiplier, if None defaults to cov_name, by default None
+        prior_beta_uniform : dict[str, tuple[float, float]] | None, optional
+            Uniform prior for beta, default to None. Otherwise should pass in
+            a dictionary with key as the dorm name and value as the uniform prior,
+            by default None
+        prior_beta_gaussian : dict[str, tuple[float, float]] | None, optional
+            Same as the ``prior_beta_uniform``, by default None
         """
         # check the input
         assert isinstance(cov_name, str)
@@ -80,20 +86,22 @@ class CovModel:
         else:
             self.num_vars = 1
 
-    def create_design_mat(self, cwdata):
-        """Create design matrix.
+    def create_design_mat(self, cwdata: CWData) -> npt.NDArray:
+        """Create design matrix
 
-        Args:
-            cwdata (crosswalk.CWData):
-                Data structure has all the information.
+        Parameters
+        ----------
+        cwdata : CWData
+            Data structure has all the information.
 
-        Returns:
-            numpy.ndarray:
-                Return the design matrix from linear cov or spline.
+        Returns
+        -------
+        npt.NDArray
+            Return the design matrix from linear cov or spline.
         """
-        assert (
-            self.cov_name in cwdata.covs.columns
-        ), "Unkown covariates, not appear in the data."
+        assert self.cov_name in cwdata.covs.columns, (
+            "Unkown covariates, not appear in the data."
+        )
         cov = cwdata.covs[self.cov_name].values
         if self.use_spline:
             mat = self.spline.design_mat(cov)[:, 1:]
@@ -101,16 +109,18 @@ class CovModel:
             mat = cov[:, None]
         return mat
 
-    def create_constraint_mat(self, num_points=20):
-        """Create constraints matrix.
+    def create_constraint_mat(self, num_points: int = 20) -> npt.NDArray:
+        """create constraints matrix
 
-        Args:
-            num_points (int, optional):
-                Number of approximation points to cover the interval for spline.
+        Parameters
+        ----------
+        num_points : int, optional
+            Number of approximation points to cover the interval for spline, by default 20
 
-        Returns:
-            numpy.ndarray:
-                Return constraints matrix if have any.
+        Returns
+        -------
+        npt.NDArray
+            Return constraints matrix if have any.
         """
         mat = np.array([]).reshape(0, self.num_vars)
         if not self.use_constraints:
@@ -134,36 +144,50 @@ class CovModel:
 class CWModel:
     """Cross Walk model."""
 
+    """Constructor of CWModel.
+    Args:
+        cwdata (data.CWData):
+        obs_type (str, optional):
+        cov_models (list{crosswalk.CovModel}):
+        gold_dorm (str | None, optional):
+        order_prior (list{list{str}} | None, optional):
+        use_random_intercept (bool, optional):
+        prior_gamma_uniform (Tuple[float, float], optional):
+        prior_gamma_gaussian (Tuple[float, float], optional):
+    """
+
     def __init__(
         self,
-        cwdata,
-        obs_type="diff_log",
-        cov_models=None,
-        gold_dorm=None,
-        order_prior=None,
-        use_random_intercept=True,
-        prior_gamma_uniform=None,
-        prior_gamma_gaussian=None,
-    ):
-        """Constructor of CWModel.
-        Args:
-            cwdata (data.CWData):
-                Data for cross walk.
-            obs_type (str, optional):
-                Type of observation can only be chosen from `'diff_log'` and
-                `'diff_logit'`.
-            cov_models (list{crosswalk.CovModel}):
-                A list of covariate models for the definitions/methods
-            gold_dorm (str | None, optional):
-                Gold standard definition/method.
-            order_prior (list{list{str}} | None, optional):
-                Order priors between different definitions.
-            use_random_intercept (bool, optional):
-                If ``True``, use random intercept.
-            prior_gamma_uniform (Tuple[float, float], optional):
-                If not ``None``, use it as the bound of gamma.
-            prior_gamma_gaussian (Tuple[float, float], optional):
-                If not ``None``, use it as the gaussian prior of gamma.
+        cwdata: CWData,
+        obs_type: str = "diff_log",
+        cov_models: Sequence[CovModel] = None,
+        gold_dorm: str | None = None,
+        order_prior: Sequence[Sequence[int]] = None,
+        use_random_intercept: bool = True,
+        prior_gamma_uniform: tuple[float, float] = None,
+        prior_gamma_gaussian: tuple[float, float] = None,
+    ) -> None:
+        """constructor of CWModel
+
+        Parameters
+        ----------
+        cwdata : CWData
+            Data for cross walk.
+        obs_type : str, optional
+            Type of observation can only be chosen from `'diff_log'` and `'diff_logit'`,
+            by default "diff_log"
+        cov_models : Sequence[CovModel], optional
+            A list of covariate models for the definitions/methods, by default None
+        gold_dorm : str | None, optional
+            Gold standard definition/method, by default None
+        order_prior : Sequence[Sequence[int]], optional
+            Order priors between different definitions, by default None
+        use_random_intercept : bool, optional
+            If ``True``, use random intercept., by default True
+        prior_gamma_uniform : tuple[float, float], optional
+            If not ``None``, use it as the bound of gamma, by default None
+        prior_gamma_gaussian : tuple[float, float], optional
+            If not ``None``, use it as the gaussian prior of gamma., by default None
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
@@ -268,7 +292,7 @@ class CWModel:
         self.fixed_vars = None
         self.random_vars = None
 
-    def check(self):
+    def check(self) -> None:
         """Check input type, dimension and values."""
         assert isinstance(self.cwdata, data.CWData)
         assert self.obs_type in ["diff_log", "diff_logit"], "Unsupport observation type"
@@ -279,7 +303,7 @@ class CWModel:
 
         assert self.order_prior is None or isinstance(self.order_prior, list)
 
-    def _assert_covs_independent(self):
+    def _assert_covs_independent(self) -> None:
         """Check if the covariates are independent."""
         rank = np.linalg.matrix_rank(self.cov_mat)
         if rank < self.cov_mat.shape[1]:
@@ -288,7 +312,7 @@ class CWModel:
                 "some of the other columns. Please check them carefully."
             )
 
-    def _assert_rank_efficient(self):
+    def _assert_rank_efficient(self) -> None:
         """Check the rank of the design matrix."""
         rank = np.linalg.matrix_rank(self.design_mat)
         num_unknowns = self.num_vars_per_dorm * (self.cwdata.num_dorms - 1)
@@ -299,17 +323,20 @@ class CWModel:
                 f"Please include more effective data or reduce the number of covariates."
             )
 
-    def create_relation_mat(self, cwdata=None):
-        """Creating relation matrix.
+    def create_relation_mat(self, cwdata: CWData | None = None) -> npt.NDArray:
+        """Creates relation matrix
 
-        Args:
-            cwdata (data.CWData | None, optional):
-                Optional data set, if None, use `self.cwdata`.
+        Parameters
+        ----------
+        cwdata : CWData | None, optional
+            Optional data set, if None, use `self.cwdata`, by default None
 
-        Returns:
-            numpy.ndarray:
-                Returns relation matrix with 1 encode alternative definition
-                and -1 encode reference definition.
+        Returns
+        -------
+        npt.NDArray
+            Returns relation matrix with 1 encode alternative definition
+            and -1 encode reference definition.
+
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
         assert isinstance(cwdata, data.CWData)
@@ -325,7 +352,7 @@ class CWModel:
 
         return relation_mat
 
-    def _check_relation_mat(self):
+    def _check_relation_mat(self) -> None:
         """Check relation matrix, detect unused dorms."""
         col_scales = np.max(np.abs(self.relation_mat), axis=0)
         unused_dorms = [
@@ -340,36 +367,45 @@ class CWModel:
                 f"appearance. Please remove {unused_dorms} from alt_dorms and ref_dorms."
             )
 
-    def create_cov_mat(self, cwdata=None):
-        """Create covariates matrix for definitions/methods model.
+    def create_cov_mat(self, cwdata: CWData | None = None) -> npt.NDArray:
+        """Creates covariate matrix for definitons/methods model
 
-        Args:
-            cwdata (data.CWData | None, optional):
-                Optional data set, if None, use `self.cwdata`.
+        Parameters
+        ----------
+        cwdata : CWData | None, optional
+            Optional data set, if None, use `self.cwdata`, by default None
 
-        Returns:
-            numpy.ndarray:
-                Returns covarites matrix.
+        Returns
+        -------
+        npt.NDArray
+            covariate matrix
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
         assert isinstance(cwdata, data.CWData)
 
         return np.hstack([model.create_design_mat(cwdata) for model in self.cov_models])
 
-    def create_design_mat(self, cwdata=None, relation_mat=None, cov_mat=None):
-        """Create linear design matrix.
+    def create_design_mat(
+        self,
+        cwdata: CWData | None = None,
+        relation_mat: npt.NDArray | None = None,
+        cov_mat: npt.NDArray | None = None,
+    ) -> npt.NDArray:
+        """create linear design matrix
 
-        Args:
-            cwdata (data.CWData | None, optional):
-                Optional data set, if None, use `self.cwdata`.
-            relation_mat (numpy.ndarray | None, optional):
-                Optional relation matrix, if None, use `self.relation_mat`
-            cov_mat (numpy.ndarray | None, optional):
-                Optional covariates matrix, if None, use `self.cov_mat`
+        Parameters
+        ----------
+        cwdata : CWData | None, optional
+            Optional data set, if None, use `self.cwdata`, by default None
+        relation_mat : npt.NDArray | None, optional
+            Optional relation matrix, if None, use `self.relation_mat`, by default None
+        cov_mat : npt.NDArray | None, optional
+            Optional covariates matrix, if None, use `self.cov_mat`, by default None
 
-        Returns:
-            numpy.ndarray:
-                Returns linear design matrix.
+        Returns
+        -------
+        npt.NDArray
+            Returns linear design matrix.
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
         relation_mat = utils.default_input(relation_mat, default=self.relation_mat)
@@ -381,12 +417,13 @@ class CWModel:
 
         return mat
 
-    def create_constraint_mat(self):
-        """Create constraint matrix.
+    def create_constraint_mat(self) -> npt.NDArray | None:
+        """create constraint matrix
 
-        Returns:
-            numpy.ndarray:
-                Return constraints matrix.
+        Returns
+        -------
+        npt.NDArray | None
+            constraint matrix, if no constraints, return None
         """
         mat = np.array([]).reshape(0, self.num_vars)
         if self.order_prior is not None:
@@ -413,20 +450,25 @@ class CWModel:
             return mat
 
     def fit(
-        self, max_iter=100, inlier_pct=1.0, outer_max_iter=100, outer_step_size=1.0
-    ):
-        """Optimize the model parameters.
-        This is a interface to limetr.
-        Args:
-            max_iter (int, optional):
-                Maximum number of iterations.
-            inlier_pct (float, optional):
-                How much percentage of the data do you trust.
-            outer_max_iter (int, optional):
-                Outer maximum number of iterations.
-            outer_step_size (float, optional):
-                Step size of the trimming problem, the larger the step size the faster it will converge,
-                and the less quality of trimming it will guarantee.
+        self,
+        max_iter: int = 100,
+        inlier_pct: float = 1.0,
+        outer_max_iter: int = 100,
+        outer_step_size: float = 1.0,
+    ) -> None:
+        """Optimizes model parameters. This is an interface to limetr
+
+        Parameters
+        ----------
+        max_iter : int, optional
+            Maximum number of iterations, by default 100
+        inlier_pct : float, optional
+            How much percentage of the data do you trust, by default 1.0
+        outer_max_iter : int, optional
+            Outer maximum number of iterations, by default 100
+        outer_step_size : float, optional
+            Step size of the trimming problem, the larger the step size the faster it will converge,
+            and the less quality of trimming it will guarantee, by default 1.0
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
@@ -510,7 +552,7 @@ class CWModel:
         self.beta_sd = np.zeros(self.lt.k_beta)
         self.beta_sd[unconstrained_id] = np.sqrt(np.diag(np.linalg.inv(hessian)))
 
-    def get_beta_hessian(self) -> np.ndarray:
+    def get_beta_hessian(self) -> npt.NDArray:
         # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta) * np.sqrt(self.lt.w)[:, None]
         z = self.lt.Z * np.sqrt(self.lt.w)[:, None]
@@ -527,7 +569,7 @@ class CWModel:
 
         return hessian
 
-    def get_cov_names(self) -> List[str]:
+    def get_cov_names(self) -> list[str]:
         # column of covariate name
         cov_names = []
         for model in self.cov_models:
@@ -540,10 +582,12 @@ class CWModel:
         return cov_names
 
     def create_result_df(self) -> pd.DataFrame:
-        """Create result data frame.
+        """create results dataframe
 
-        Returns:
-            pd.DataFrame: Data frame that contains the result.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing results
         """
         # column of dorms
         dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
@@ -573,12 +617,15 @@ class CWModel:
 
         return df
 
-    def save_result_df(self, folder: str, filename: str = "result.csv"):
-        """Save result.
+    def save_result_df(self, folder: str, filename: str = "result.csv") -> None:
+        """save results to csv file
 
-        Args:
-            folder (str): Path to the result folder.
-            filename (str): Name of the result. Default to `'result.csv'`.
+        Parameters
+        ----------
+        folder : str
+            Path to the result folder.
+        filename : str, optional
+            Name of the result, by default "result.csv"
         """
         if not filename.endswith(".csv"):
             filename += ".csv"
@@ -587,38 +634,40 @@ class CWModel:
 
     def adjust_orig_vals(
         self,
-        df,
-        orig_dorms,
-        orig_vals_mean,
-        orig_vals_se,
-        study_id=None,
-        data_id=None,
-        ref_dorms=None,
-    ):
-        """Adjust alternative values.
+        df: pd.DataFrame,
+        orig_dorms: str,
+        orig_vals_mean: str,
+        orig_vals_se: str,
+        study_id: str | None = None,
+        data_id: str | None = None,
+        ref_dorms: str | None = None,
+    ) -> pd.DataFrame:
+        """adjusts alternative values
 
-        Args:
-            df (pd.DataFrame):
-                Data frame of the alternative values that need to be adjusted.
-            orig_dorms (str):
-                Name of the column in `df` that contains the alternative
-                definitions or methods.
-            orig_vals_mean (str):
-                Name of the column in `df` that contains the alternative values.
-            orig_vals_se (str):
-                Name of the column in `df` that contains the standard error of
-                alternative values.
-            study_id (str | None, optional):
-                If not `None`, predict with the random effects.
-            data_id (str | None, optional):
-                If `None` create data_id by the integer sequence.
-            ref_dorms (str, optional):
-                Name of the column with reference dorms, if is ``None``, use the
-                gold_dorm as the reference dorm. Default to ``None``.
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Data frame of the alternative values that need to be adjusted.
+        orig_dorms : str
+            Name of the column in `df` that contains the alternative
+            definitions or methods.
+        orig_vals_mean : str
+            Name of the column in `df` that contains the alternative values.
+        orig_vals_se : str
+            Name of the column in `df` that contains the standard error of
+            alternative values.
+        study_id : str | None, optional
+            If not `None`, predict with the random effects, by default None
+        data_id : str | None, optional
+            If `None` create data_id by the integer sequence, by default None
+        ref_dorms : str | None, optional
+            Name of the column with reference dorms, if is ``None``, use the
+            gold_dorm as the reference dorm. Default to ``None``, by default None
 
-        Returns:
-            pandas.DataFrame:
-                The adjusted values and standard deviations.
+        Returns
+        -------
+        pd.DataFrame
+            The adjusted values and standard deviations.
         """
         df_copy = df.copy()
         if ref_dorms is None:
