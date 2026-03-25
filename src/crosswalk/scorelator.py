@@ -5,9 +5,11 @@ Scorelator
 import os
 from pathlib import Path
 from typing import Tuple, Union
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.stats import norm
+
 from .model import CWModel
 
 
@@ -16,12 +18,12 @@ class Scorelator:
         self,
         model: CWModel,
         draw_bounds: Tuple[float, float] = (0.05, 0.95),
-        type: str = "harmful",
+        effect_type: str = "harmful",
         name: str = "unknown",
     ):
         self.model = model
         self.draw_bounds = draw_bounds
-        self.type = type
+        self.effect_type = effect_type
         self.name = name
 
         self.cov_names = model.get_cov_names()
@@ -55,10 +57,12 @@ class Scorelator:
     def get_score(self, use_gamma_ub: bool = False) -> float:
         if use_gamma_ub:
             score = (
-                self.wider_draw_lb if self.type == "harmful" else -self.wider_draw_ub
+                self.wider_draw_lb
+                if self.effect_type == "harmful"
+                else -self.wider_draw_ub
             )
         else:
-            score = self.draw_lb if self.type == "harmful" else -self.draw_ub
+            score = self.draw_lb if self.effect_type == "harmful" else -self.draw_ub
         return score * 0.5
 
     def plot_model(
@@ -97,7 +101,7 @@ class Scorelator:
             data.unique_dorms, list(data.unique_dorms).index(self.model.gold_dorm)
         )
         beta_sort_id = np.argsort(self.beta)
-        if self.type == "protective":
+        if self.effect_type == "protective":
             beta_sort_id = beta_sort_id[::-1]
         dorms = dorms[beta_sort_id]
 
@@ -127,7 +131,6 @@ class Scorelator:
 
         ax.axhline(0.0, color="gray", linestyle="--", linewidth=1.0)
         title = self.name if title is None else title
-        score = np.round(self.get_score(), 3)
         low_score = np.round(self.get_score(use_gamma_ub=True), 3)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
