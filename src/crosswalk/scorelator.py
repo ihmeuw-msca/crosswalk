@@ -7,6 +7,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from scipy.stats import norm
 
 from .model import CWModel
@@ -53,7 +54,7 @@ class Scorelator:
             self.draw_bounds[1], scale=np.sqrt(gamma_ub + self.beta_sd**2)
         )
 
-    def get_score(self, use_gamma_ub: bool = False) -> float:
+    def get_score(self, use_gamma_ub: bool = False) -> npt.NDArray:
         if use_gamma_ub:
             score = (
                 self.wider_draw_lb if self.type == "harmful" else -self.wider_draw_ub
