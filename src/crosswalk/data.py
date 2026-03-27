@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-    data
-    ~~~~
+data
+~~~~
 
-    `data` module of the `crosswalk` package.
+`data` module of the `crosswalk` package.
 """
+
+import warnings
+
 import numpy as np
 import pandas as pd
-import warnings
+
 from . import utils
 
 
@@ -173,9 +176,9 @@ class CWData:
         if self.study_id is not None:
             assert self.study_id.shape == (self.num_obs,)
 
-        assert (
-            len(set(self.data_id)) == self.num_obs
-        ), "data_id has to be unique for each data point."
+        assert len(set(self.data_id)) == self.num_obs, (
+            "data_id has to be unique for each data point."
+        )
 
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id."""
@@ -201,9 +204,9 @@ class CWData:
     def __repr__(self):
         """Summary of the object."""
         dimension_summary = [
-            "number of observations: %i" % self.num_obs,
-            "number of covariates  : %i" % self.num_covs,
-            "number of defs/methods: %i" % self.num_dorms,
-            "number of studies     : %i" % self.num_studies,
+            f"number of observations: {self.num_obs}",
+            f"number of covariates  : {self.num_covs}",
+            f"number of defs/methods: {self.num_dorms}",
+            f"number of studies     : {self.num_studies}",
         ]
         return "\n".join(dimension_summary)
