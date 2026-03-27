@@ -5,10 +5,12 @@ Scorelator
 import os
 from pathlib import Path
 from typing import Tuple, Union
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.stats import norm
-from .model import CWModel
+
+from crosswalk.model import CWModel
 
 
 class Scorelator:

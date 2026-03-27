@@ -11,7 +11,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from . import utils
+from crosswalk import utils
 
 
 class CWData:
