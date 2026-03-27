@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    model
-    ~~~~~
+model
+~~~~~
 
-    `model` module of the `crosswalk` package.
+`model` module of the `crosswalk` package.
 """
+
 import warnings
 from typing import List
 
@@ -91,9 +92,9 @@ class CovModel:
             numpy.ndarray:
                 Return the design matrix from linear cov or spline.
         """
-        assert (
-            self.cov_name in cwdata.covs.columns
-        ), "Unkown covariates, not appear in the data."
+        assert self.cov_name in cwdata.covs.columns, (
+            "Unkown covariates, not appear in the data."
+        )
         cov = cwdata.covs[self.cov_name].values
         if self.use_spline:
             mat = self.spline.design_mat(cov)[:, 1:]
@@ -181,6 +182,33 @@ class CWModel:
         # check input
         self.check()
 
+        self._setup_obs_functions()
+        self._setup_vars_and_mats()
+        self._setup_priors(
+            raw_prior_gamma_uniform=prior_gamma_uniform,
+            raw_prior_gamma_gaussian=prior_gamma_gaussian,
+        )
+
+        # place holder for the solutions
+        self.beta = None
+        self.beta_sd = None
+        self.gamma = None
+        self.fixed_vars = None
+        self.random_vars = None
+
+    def check(self):
+        """Check input type, dimension and values."""
+        assert isinstance(self.cwdata, data.CWData)
+        assert self.obs_type in ["diff_log", "diff_logit"], "Unsupport observation type"
+        assert isinstance(self.cov_models, list)
+        assert all([isinstance(model, CovModel) for model in self.cov_models])
+
+        assert self.gold_dorm in self.cwdata.unique_dorms
+
+        assert self.order_prior is None or isinstance(self.order_prior, list)
+
+    def _setup_obs_functions(self):
+
         # create function for prediction
         if self.obs_type == "diff_log":
 
@@ -201,6 +229,7 @@ class CWModel:
         self.obs_fun = obs_fun
         self.obs_inv_fun = obs_inv_fun
 
+    def _setup_vars_and_mats(self):
         # variable names
         self.vars = [dorm for dorm in self.cwdata.unique_dorms]
 
@@ -222,11 +251,12 @@ class CWModel:
         self._assert_rank_efficient()
         self.constraint_mat = self.create_constraint_mat()
 
+    def _setup_priors(self, raw_prior_gamma_uniform, raw_prior_gamma_gaussian):
         # gamma bounds
         self.prior_gamma_uniform = (
             np.array([0.0, np.inf])
-            if prior_gamma_uniform is None
-            else np.array(prior_gamma_uniform)
+            if raw_prior_gamma_uniform is None
+            else np.array(raw_prior_gamma_uniform)
         )
         if not self.use_random_intercept:
             self.prior_gamma_uniform = np.zeros(2)
@@ -239,8 +269,8 @@ class CWModel:
         # gamma Gaussian prior
         self.prior_gamma_gaussian = (
             np.array([0.0, np.inf])
-            if prior_gamma_gaussian is None
-            else np.array(prior_gamma_gaussian)
+            if raw_prior_gamma_gaussian is None
+            else np.array(raw_prior_gamma_gaussian)
         )
         if not self.use_random_intercept:
             self.prior_gamma_gaussian = np.array([0.0, np.inf])
@@ -260,24 +290,6 @@ class CWModel:
                 gprior[:, self.var_idx[dorm][i]] = prior
         gprior[:, self.var_idx[self.gold_dorm]] = np.array([[0.0], [np.inf]])
         self.prior_beta_gaussian = gprior
-
-        # place holder for the solutions
-        self.beta = None
-        self.beta_sd = None
-        self.gamma = None
-        self.fixed_vars = None
-        self.random_vars = None
-
-    def check(self):
-        """Check input type, dimension and values."""
-        assert isinstance(self.cwdata, data.CWData)
-        assert self.obs_type in ["diff_log", "diff_logit"], "Unsupport observation type"
-        assert isinstance(self.cov_models, list)
-        assert all([isinstance(model, CovModel) for model in self.cov_models])
-
-        assert self.gold_dorm in self.cwdata.unique_dorms
-
-        assert self.order_prior is None or isinstance(self.order_prior, list)
 
     def _assert_covs_independent(self):
         """Check if the covariates are independent."""
