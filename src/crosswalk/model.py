@@ -17,6 +17,8 @@ from xspline import XSpline
 
 from crosswalk import data, utils
 
+__all__ = ["CovModel", "CWModel"]
+
 
 class CovModel:
     """Covariate model."""

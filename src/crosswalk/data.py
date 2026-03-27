@@ -13,6 +13,8 @@ import pandas as pd
 
 from crosswalk import utils
 
+__all__ = ["CWData"]
+
 
 class CWData:
     """Cross Walk data structure."""
