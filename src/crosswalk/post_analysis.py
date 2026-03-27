@@ -3,12 +3,16 @@ Post analysis module
 """
 
 from typing import Tuple
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.stats import norm
+
 from crosswalk import CWData, CWModel
 from crosswalk.scorelator import Scorelator
+
+__all__ = ["PostAnalysis"]
 
 
 class PostAnalysis:

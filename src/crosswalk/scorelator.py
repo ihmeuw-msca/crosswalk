@@ -12,6 +12,8 @@ from scipy.stats import norm
 
 from crosswalk.model import CWModel
 
+__all__ = ["Scorelator"]
+
 
 class Scorelator:
     def __init__(

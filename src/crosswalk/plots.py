@@ -7,6 +7,8 @@ import seaborn as sns
 
 from crosswalk import utils
 
+__all__ = ["dose_response_curve", "funnel_plot"]
+
 
 def dose_response_curve(
     dose_variable,
