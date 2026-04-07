@@ -301,7 +301,7 @@ def dose_response_curve(
         plt.axvline(knot, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
     # Save plots
     if write_file:
-        if plots_dir is not None:
+        if plots_dir is None:
             raise ValueError("plots_dir is not specified")
         outfile = os.path.join(plots_dir, f"{file_name}.pdf")
         plt.savefig(outfile, orientation="landscape", bbox_inches="tight")
