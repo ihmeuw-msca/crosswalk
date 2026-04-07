@@ -15,7 +15,7 @@ from scipy.stats import norm
 
 def is_numerical_array(
     x: npt.NDArray,
-    shape: tuple[int, int] = None,
+    shape: tuple[int, int] | None = None,
     not_nan: bool = True,
     not_inf: bool = True,
 ) -> bool:
