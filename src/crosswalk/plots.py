@@ -313,21 +313,6 @@ def dose_response_curve(
         plt.show()
     plt.close()
 
-    """Funnel Plot.
-    Args:
-        obs_method (str):
-        cwdata (CWData object):
-        cwmodel (CWModel object):
-        continuous_variables (list):
-        binary_variables (dict):
-        plots_dir (str):
-        file_name (str):
-        plot_note (str):
-        include_bias (bool):
-        write_file (bool):
-
-    """
-
 
 def funnel_plot(
     obs_method: str = "Self-reported",
