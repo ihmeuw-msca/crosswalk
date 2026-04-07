@@ -162,7 +162,7 @@ class CWModel:
         obs_type: str = "diff_log",
         cov_models: Sequence[CovModel] = None,
         gold_dorm: str | None = None,
-        order_prior: Sequence[Sequence[int]] = None,
+        order_prior: Sequence[Sequence[str]] = None,
         use_random_intercept: bool = True,
         prior_gamma_uniform: tuple[float, float] = None,
         prior_gamma_gaussian: tuple[float, float] = None,
@@ -180,7 +180,7 @@ class CWModel:
             A list of covariate models for the definitions/methods, by default None
         gold_dorm : str | None, optional
             Gold standard definition/method, by default None
-        order_prior : Sequence[Sequence[int]], optional
+        order_prior : Sequence[Sequence[str]], optional
             Order priors between different definitions, by default None
         use_random_intercept : bool, optional
             If ``True``, use random intercept., by default True
