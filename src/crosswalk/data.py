@@ -203,7 +203,7 @@ class CWData:
         self.unique_dorms = cwdata.unique_dorms
         self.dorm_idx = cwdata.dorm_idx
 
-    def __repr__(self) -> list[str]:
+    def __repr__(self) -> str:
         """Summary of the object."""
         dimension_summary = [
             "number of observations: %i" % self.num_obs,
