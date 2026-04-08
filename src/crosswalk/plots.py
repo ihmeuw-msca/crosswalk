@@ -56,8 +56,8 @@ def dose_response_curve(
             If True, `plots_dir` should be specified too.
 
     """
-    continuous_variables = []
-    binary_variables = {}
+    continuous_variables = [] if continuous_variables is None else continuous_variables
+    binary_variables = {} if binary_variables is None else binary_variables
     # All covariates in cwmodel should be specified.
     cwmodel_covs = [
         cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))
