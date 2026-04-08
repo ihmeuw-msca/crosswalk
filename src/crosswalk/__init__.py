@@ -8,6 +8,7 @@ crosswalk
 
 from threadpoolctl import threadpool_limits
 
+from crosswalk import utils
 from crosswalk.data import CWData
 from crosswalk.model import CovModel, CWModel
 from crosswalk.plots import dose_response_curve, funnel_plot
@@ -18,6 +19,7 @@ threadpool_limits(limits=1, user_api="blas")
 threadpool_limits(limits=1, user_api="openmp")
 
 __all__ = [
+    "utils",
     "CWData",
     "CovModel",
     "CWModel",
@@ -25,5 +27,4 @@ __all__ = [
     "funnel_plot",
     "PostAnalysis",
     "Scorelator",
-    "utils",
 ]
