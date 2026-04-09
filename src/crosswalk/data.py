@@ -141,7 +141,7 @@ class CWData:
         self.max_alt_dorm = self.unique_alt_dorms[np.argmax(self.alt_dorm_sizes)]
         self.min_alt_dorm = self.unique_alt_dorms[np.argmin(self.alt_dorm_sizes)]
         self.max_ref_dorm = self.unique_ref_dorms[np.argmax(self.ref_dorm_sizes)]
-        self.min_alt_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
+        self.min_ref_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
 
         self.dorm_idx = {dorm: i for i, dorm in enumerate(self.unique_dorms)}
 
