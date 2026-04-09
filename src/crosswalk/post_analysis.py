@@ -12,6 +12,8 @@ from scipy.stats import norm
 from crosswalk import CWData, CWModel
 from crosswalk.scorelator import Scorelator
 
+__all__ = ["PostAnalysis"]
+
 
 class PostAnalysis:
     def __init__(

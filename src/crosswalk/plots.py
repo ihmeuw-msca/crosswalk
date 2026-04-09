@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from . import utils
+from crosswalk import utils
+
+__all__ = ["dose_response_curve", "funnel_plot"]
 
 
 def dose_response_curve(

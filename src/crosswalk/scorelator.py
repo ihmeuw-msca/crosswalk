@@ -10,7 +10,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
 
-from .model import CWModel
+from crosswalk.model import CWModel
+
+__all__ = ["Scorelator"]
 
 
 class Scorelator:

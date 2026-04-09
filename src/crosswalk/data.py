@@ -11,7 +11,9 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from . import utils
+from crosswalk import utils
+
+__all__ = ["CWData"]
 
 
 class CWData:
@@ -204,9 +206,9 @@ class CWData:
     def __repr__(self):
         """Summary of the object."""
         dimension_summary = [
-            "number of observations: %i" % self.num_obs,
-            "number of covariates  : %i" % self.num_covs,
-            "number of defs/methods: %i" % self.num_dorms,
-            "number of studies     : %i" % self.num_studies,
+            f"number of observations: {self.num_obs}",
+            f"number of covariates  : {self.num_covs}",
+            f"number of defs/methods: {self.num_dorms}",
+            f"number of studies     : {self.num_studies}",
         ]
         return "\n".join(dimension_summary)

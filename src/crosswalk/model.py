@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    model
-    ~~~~~
+model
+~~~~~
 
-    `model` module of the `crosswalk` package.
+`model` module of the `crosswalk` package.
 """
+
 import warnings
 from typing import List
 
@@ -14,7 +15,9 @@ import pandas as pd
 from limetr import LimeTr
 from xspline import XSpline
 
-from . import data, utils
+from crosswalk import data, utils
+
+__all__ = ["CovModel", "CWModel"]
 
 
 class CovModel:
@@ -91,9 +94,9 @@ class CovModel:
             numpy.ndarray:
                 Return the design matrix from linear cov or spline.
         """
-        assert (
-            self.cov_name in cwdata.covs.columns
-        ), "Unkown covariates, not appear in the data."
+        assert self.cov_name in cwdata.covs.columns, (
+            "Unkown covariates, not appear in the data."
+        )
         cov = cwdata.covs[self.cov_name].values
         if self.use_spline:
             mat = self.spline.design_mat(cov)[:, 1:]
