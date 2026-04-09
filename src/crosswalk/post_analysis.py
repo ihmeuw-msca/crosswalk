@@ -3,10 +3,12 @@ Post analysis module
 """
 
 from typing import Tuple
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.stats import norm
+
 from crosswalk import CWData, CWModel
 from crosswalk.scorelator import Scorelator
 
@@ -16,12 +18,12 @@ class PostAnalysis:
         self,
         model: CWModel,
         draw_bounds: Tuple[float, float] = (0.05, 0.95),
-        type: str = "harmful",
+        effect_type: str = "harmful",
         name: str = "unknown",
     ):
         self.model = model
         self.draw_bounds = draw_bounds
-        self.type = type
+        self.effect_type = effect_type
         self.name = name
 
         self.df = self.model.cwdata.df.copy()
@@ -44,14 +46,17 @@ class PostAnalysis:
 
         # create scorelator
         self.scorelator = Scorelator(
-            self.model, draw_bounds=self.draw_bounds, type=self.type, name=self.name
+            self.model,
+            draw_bounds=self.draw_bounds,
+            effect_type=self.effect_type,
+            name=self.name,
         )
 
         if self.model_fill is not None:
             self.scorelator_fill = Scorelator(
                 self.model_fill,
                 draw_bounds=self.draw_bounds,
-                type=self.type,
+                effect_type=self.effect_type,
                 name=self.name,
             )
 
@@ -134,7 +139,7 @@ class PostAnalysis:
             order_prior=self.model.order_prior,
             use_random_intercept=self.model.use_random_intercept,
             prior_gamma_uniform=self.model.prior_gamma_uniform,
-            prior_gamma_gaussian=self.model.prior_gamma_guassian,
+            prior_gamma_gaussian=self.model.prior_gamma_gaussian,
         )
         self.model_fill.fit(inlier_pct=1.0, max_iter=500)
 

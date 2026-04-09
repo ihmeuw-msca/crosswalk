@@ -1,16 +1,18 @@
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+
 from . import utils
 
 
 def dose_response_curve(
     dose_variable,
     obs_method,
-    continuous_variables=[],
-    binary_variables={},
+    continuous_variables=None,
+    binary_variables=None,
     plots_dir=None,
     cwdata=None,
     cwmodel=None,
@@ -54,6 +56,8 @@ def dose_response_curve(
             If True, `plots_dir` should be specified too.
 
     """
+    continuous_variables = [] if continuous_variables is None else continuous_variables
+    binary_variables = {} if binary_variables is None else binary_variables
     # All covariates in cwmodel should be specified.
     cwmodel_covs = [
         cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))

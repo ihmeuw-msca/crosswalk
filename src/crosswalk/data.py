@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-    data
-    ~~~~
+data
+~~~~
 
-    `data` module of the `crosswalk` package.
+`data` module of the `crosswalk` package.
 """
+
+import warnings
+
 import numpy as np
 import pandas as pd
-import warnings
+
 from . import utils
 
 
@@ -136,7 +139,7 @@ class CWData:
         self.max_alt_dorm = self.unique_alt_dorms[np.argmax(self.alt_dorm_sizes)]
         self.min_alt_dorm = self.unique_alt_dorms[np.argmin(self.alt_dorm_sizes)]
         self.max_ref_dorm = self.unique_ref_dorms[np.argmax(self.ref_dorm_sizes)]
-        self.min_alt_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
+        self.min_ref_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
 
         self.dorm_idx = {dorm: i for i, dorm in enumerate(self.unique_dorms)}
 
@@ -173,9 +176,9 @@ class CWData:
         if self.study_id is not None:
             assert self.study_id.shape == (self.num_obs,)
 
-        assert (
-            len(set(self.data_id)) == self.num_obs
-        ), "data_id has to be unique for each data point."
+        assert len(set(self.data_id)) == self.num_obs, (
+            "data_id has to be unique for each data point."
+        )
 
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id."""
