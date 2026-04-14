@@ -6,6 +6,8 @@ data
 `data` module of the `crosswalk` package.
 """
 
+from __future__ import annotations
+
 import warnings
 
 import numpy as np
@@ -21,45 +23,45 @@ class CWData:
 
     def __init__(
         self,
-        df,
-        obs=None,
-        obs_se=None,
-        alt_dorms=None,
-        ref_dorms=None,
-        dorm_separator=None,
-        covs=None,
-        study_id=None,
-        data_id=None,
-        add_intercept=True,
-    ):
+        df: pd.DataFrame,
+        obs: str | None = None,
+        obs_se: str | None = None,
+        alt_dorms: str | None = None,
+        ref_dorms: str | None = None,
+        dorm_separator: str | None = None,
+        covs: list[str] | None = None,
+        study_id: str | None = None,
+        data_id: str | None = None,
+        add_intercept: bool = True,
+    ) -> None:
         """Constructor of CWData
 
-        Args:
-            df (pandas.DataFrame):
-                Dataframe from csv file that store the data.
-            obs (str | None, optional):
-                Observations of the problem, can be log or logit differences.
-            obs_se (str | None, optional):
-                Standard error of the observations.
-            alt_dorms (str | None, optional):
-                Alternative definitions/methods for each observation.
-            ref_dorms (str | None, optional):
-                Reference definitions/methods for each observation.
-            dorm_separator (str | None, optional):
-                Used when there are multiple definitions in alt_dorms or ref_dorms.
-                Will decompose the dorm by this separator into multiple dorms.
-                If None, assume single dorm for alt_dorms and ref_dorms.
-                Default to None.
-            covs (list{str} | None, optional):
-                Covariates linearly parametrized the observation.
-            study_id (str | None, optional):
-                Study id for each observation.
-            data_id (str | None, optional):
-                ID for each data, if pass in column, it requires the elements in the column
-                to be different from each other. If ``None``, the program will generate
-                a integer sequence from 0 to ``num_obs`` to serve as the data_id.
-            add_intercept (bool, optional):
-                If `True`, add intercept to the current covariates.
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Dataframe from csv file that store the data.
+        obs : str | None, optional
+            Observations of the problem, can be log or logit differences, by default None
+        obs_se : str | None, optional
+            Standard error of the observations, by default None
+        alt_dorms : str | None, optional
+            Alternative definitions/methods for each observation, by default None
+        ref_dorms : str | None, optional
+            Reference definitions/methods for each observation, by default None
+        dorm_separator : str | None, optional
+            Used when there are multiple definitions in alt_dorms or ref_dorms.
+            Will decompose the dorm by this separator into multiple dorms.
+            If None, assume single dorm for alt_dorms and ref_dorms, by default None
+        covs : list[str], optional
+            Covariates linearly parametrized the observation, by default None
+        study_id : str | None, optional
+            Study id for each observation, by default None
+        data_id : str | None, optional
+            ID for each data, if pass in column, it requires the elements in the column
+            to be different from each other. If ``None``, the program will generate
+            a integer sequence from 0 to ``num_obs`` to serve as the data_id, by default None
+        add_intercept : bool, optional
+            If `True`, add intercept to the current covariates, by default True
         """
         self.df = df
 
@@ -156,7 +158,7 @@ class CWData:
             )
         self.sort_by_study_id()
 
-    def check(self):
+    def check(self) -> None:
         """Check inputs type, shape and value."""
         # obs_se validation
         if self.obs is not None and not utils.is_numerical_array(
@@ -213,7 +215,7 @@ class CWData:
         if len(set(self.data_id)) != self.num_obs:
             raise ValueError("data_id has to be unique for each data point.")
 
-    def sort_by_study_id(self):
+    def sort_by_study_id(self) -> None:
         """Sort the observations and covariates by the study id."""
         if self.study_id is not None:
             sort_id = np.argsort(self.study_id)
@@ -225,7 +227,7 @@ class CWData:
             self.ref_dorms = [self.ref_dorms[index] for index in sort_id]
             self.covs = self.covs.reindex(sort_id)
 
-    def copy_dorm_structure(self, cwdata):
+    def copy_dorm_structure(self, cwdata: CWData) -> None:
         """Copy the dorm structure from other"""
         if cwdata.num_dorms < self.num_dorms:
             raise ValueError(
@@ -240,7 +242,7 @@ class CWData:
         self.unique_dorms = cwdata.unique_dorms
         self.dorm_idx = cwdata.dorm_idx
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Summary of the object."""
         dimension_summary = [
             f"number of observations: {self.num_obs}",

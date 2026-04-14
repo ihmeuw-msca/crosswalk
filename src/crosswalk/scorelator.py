@@ -22,7 +22,7 @@ class Scorelator:
         draw_bounds: Tuple[float, float] = (0.05, 0.95),
         effect_type: str = "harmful",
         name: str = "unknown",
-    ):
+    ) -> None:
         self.model = model
         self.draw_bounds = draw_bounds
         self.effect_type = effect_type
@@ -56,7 +56,7 @@ class Scorelator:
             self.draw_bounds[1], scale=np.sqrt(gamma_ub + self.beta_sd**2)
         )
 
-    def get_score(self, use_gamma_ub: bool = False) -> float:
+    def get_score(self, use_gamma_ub: bool = False) -> npt.NDArray:
         if use_gamma_ub:
             score = (
                 self.wider_draw_lb
@@ -69,15 +69,15 @@ class Scorelator:
 
     def plot_model(
         self,
-        ax=None,
-        title: str = None,
+        ax: plt.Axes = None,
+        title: str | None = None,
         xlabel: str = "definitions or methods",
         ylabel: str = "ln relative risk",
-        xlim: tuple = None,
-        ylim: tuple = None,
-        xscale: str = None,
-        yscale: str = None,
-        folder: Union[str, Path] = None,
+        xlim: tuple | None = None,
+        ylim: tuple | None = None,
+        xscale: str | None = None,
+        yscale: str | None = None,
+        folder: str | Path = None,
     ):
         if ax is None:
             fig = plt.figure(figsize=(4 * (self.model.cwdata.num_dorms - 1), 5))
