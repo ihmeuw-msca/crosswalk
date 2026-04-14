@@ -1,27 +1,31 @@
-# makefile for simple installation
-.PHONY: clean, tests
+# Makefile for simple installation and testing
+.PHONY: build install install-dev tests clean uninstall
 
-build: setup.py
-	python setup.py build
+# Build the source distribution and wheel
+build: pyproject.toml
+	python -m build
 
-install: setup.py
-	python setup.py install
+# Standard installation
+install: pyproject.toml
+	python -m pip install .
 
-sdist: setup.py
-	python setup.py sdist
+# Editable install with testing dependencies for local development
+install-dev: pyproject.toml
+	python -m pip install -e ".[test]"
 
+# Run tests
 tests:
-	pytest tests
+	python -m pytest tests
 
+# Clean up build artifacts and compiled files
 clean:
-	find . -name "*.so*" | xargs rm -rf
-	find . -name "*.pyc" | xargs rm -rf
-	find . -name "__pycache__" | xargs rm -rf
-	find . -name "build" | xargs rm -rf
-	find . -name "dist" | xargs rm -rf
-	find . -name "MANIFEST" | xargs rm -rf
-	find . -name "*.egg-info" | xargs rm -rf
-	find . -name ".pytest_cache" | xargs rm -rf
+	find . -type f -name "*.so*" -delete
+	find . -type f -name "*.pyc" -delete
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type d -name "*.egg-info" -exec rm -rf {} +
+	find . -type d -name ".pytest_cache" -exec rm -rf {} +
+	rm -rf build/ dist/ MANIFEST
 
+# Safely uninstall the package
 uninstall:
-	find $(CONDA_PREFIX)/lib/ -name "*crosswalk*" | xargs rm -rf
+	python -m pip uninstall -y crosswalk
