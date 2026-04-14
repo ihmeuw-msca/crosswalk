@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-    test_model
-    ~~~~~~~~~~
+test_model
+~~~~~~~~~~
 
-    Test `model` module for the `crosswalk` package.
+Test `model` module for the `crosswalk` package.
 """
+
+import crosswalk
+import crosswalk.model as model
 import numpy as np
 import pandas as pd
 import pytest
-import crosswalk
-import crosswalk.model as model
 from xspline import XSpline
 
 
@@ -30,7 +31,7 @@ def cwdata():
         [3 if alt_dorm != 3 else 0 for alt_dorm in df["alt_dorms"]]
     )
     for i in range(num_covs):
-        df["cov%i" % i] = np.random.randn(num_obs)
+        df[f"cov{i}"] = np.random.randn(num_obs)
 
     return crosswalk.data.CWData(
         df,
@@ -38,7 +39,7 @@ def cwdata():
         "obs_se",
         "alt_dorms",
         "ref_dorms",
-        covs=["cov%i" % i for i in range(num_covs)],
+        covs=[f"cov{i}" for i in range(num_covs)],
         study_id="study_id",
     )
 

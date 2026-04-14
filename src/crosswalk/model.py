@@ -15,7 +15,9 @@ import pandas as pd
 from limetr import LimeTr
 from xspline import XSpline
 
-from . import data, utils
+from crosswalk import data, utils
+
+__all__ = ["CovModel", "CWModel"]
 
 
 class CovModel:
