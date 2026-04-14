@@ -16,7 +16,8 @@ import pandas as pd
 from limetr import LimeTr
 from xspline import XSpline
 
-from crosswalk import data, utils
+from crosswalk import utils
+from crosswalk.data import CWData
 
 __all__ = ["CovModel", "CWModel"]
 
@@ -317,7 +318,7 @@ class CWModel:
 
     def check(self) -> None:
         """Check input type, dimension and values."""
-        if not isinstance(self.cwdata, data.CWData):
+        if not isinstance(self.cwdata, CWData):
             raise TypeError(
                 f"Expected 'cwdata' to be a data.CWData instance, got {type(self.cwdata).__name__}."
             )
@@ -378,7 +379,7 @@ class CWModel:
 
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
-        if not isinstance(cwdata, data.CWData):
+        if not isinstance(cwdata, CWData):
             raise TypeError(
                 f"expected 'cwdata' to be an instance of CWData, got {type(cwdata).__name__} instead"
             )
@@ -423,7 +424,7 @@ class CWModel:
             covariate matrix
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
-        if not isinstance(cwdata, data.CWData):
+        if not isinstance(cwdata, CWData):
             raise TypeError(
                 f"expected 'cwdata' to be an instance of CWData, got {type(cwdata).__name__} instead"
             )
@@ -719,7 +720,7 @@ class CWModel:
             df_copy[ref_dorms] = np.array([self.gold_dorm] * df_copy.shape[0])
         if "intercept" not in df_copy.columns:
             df_copy["intercept"] = np.ones(df_copy.shape[0])
-        new_cwdata = data.CWData(
+        new_cwdata = CWData(
             df_copy,
             alt_dorms=orig_dorms,
             ref_dorms=ref_dorms,
