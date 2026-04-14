@@ -166,8 +166,6 @@ class CovModel:
 
 
 class CWModel:
-    """Cross Walk model."""
-
     """Constructor of CWModel.
     Args:
         cwdata (data.CWData):

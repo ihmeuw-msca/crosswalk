@@ -16,8 +16,8 @@ __all__ = ["dose_response_curve", "funnel_plot"]
 def dose_response_curve(
     dose_variable: str,
     obs_method: str,
-    continuous_variables: list = [],
-    binary_variables: dict = {},
+    continuous_variables: list | None = None,
+    binary_variables: dict | None = None,
     plots_dir: str | None = None,
     cwdata: CWData | None = None,
     cwmodel: CWModel | None = None,
@@ -324,8 +324,8 @@ def funnel_plot(
     obs_method: str = "Self-reported",
     cwdata: CWData | None = None,
     cwmodel: CWModel | None = None,
-    continuous_variables: list = [],
-    binary_variables: dict = {},
+    continuous_variables: list | None = None,
+    binary_variables: dict | None = None,
     plots_dir: str | None = None,
     file_name: str = "funnel_plot",
     plot_note: str | None = None,
@@ -360,6 +360,9 @@ def funnel_plot(
         Specify `True` if the plot is expected to be saved on disk.
         If True, `plots_dir` should be specified too, by default False
     """
+    continuous_variables = [] if continuous_variables is None else continuous_variables
+    binary_variables = {} if binary_variables is None else binary_variables
+
     if obs_method not in cwdata.unique_alt_dorms:
         raise ValueError(f"{obs_method} not in alt_dorms")
 
