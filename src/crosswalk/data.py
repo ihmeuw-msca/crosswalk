@@ -27,7 +27,7 @@ class CWData:
         alt_dorms: str | None = None,
         ref_dorms: str | None = None,
         dorm_separator: str | None = None,
-        covs: list[str] = None,
+        covs: list[str] | None = None,
         study_id: str | None = None,
         data_id: str | None = None,
         add_intercept: bool = True,
