@@ -11,7 +11,9 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from . import utils
+from crosswalk import utils
+
+__all__ = ["CWData"]
 
 
 class CWData:
@@ -82,29 +84,60 @@ class CWData:
 
     def check_inputs(self):
         """Check inputs type, shape and value."""
-        assert self.obs is None or utils.is_numerical_array(
+        if self.obs is not None and not utils.is_numerical_array(
             self.obs, shape=(self.num_obs,)
-        )
-        assert self.obs_se is None or utils.is_numerical_array(
+        ):
+            raise ValueError(
+                f"Expected 'obs' to be None or a numerical array of shape ({self.num_obs},), "
+                f"but received invalid input of type {type(self.obs).__name__}."
+            )
+        if self.obs_se is not None and not utils.is_numerical_array(
             self.obs_se, shape=(self.num_obs,)
-        )
-        if utils.is_numerical_array(self.obs_se):
-            assert (self.obs_se > 0.0).all()
+        ):
+            raise ValueError(
+                f"Expected 'obs_se' to be None or a numerical array of shape ({self.num_obs},)."
+            )
 
-        assert isinstance(self.alt_dorms, list)
-        assert isinstance(self.ref_dorms, list)
-        assert len(self.alt_dorms) == self.num_obs
-        assert len(self.ref_dorms) == self.num_obs
+        if utils.is_numerical_array(self.obs_se) and not (self.obs_se > 0.0).all():
+            raise ValueError(
+                "All values in 'obs_se' must be strictly greater than 0.0."
+            )
 
-        assert isinstance(self.covs, pd.DataFrame)
-        assert self.covs.shape[1] == self.num_covs
+        # alt_dorms and ref_dorms validation
+        if not isinstance(self.alt_dorms, list):
+            raise TypeError(
+                f"Expected 'alt_dorms' to be a list, got {type(self.alt_dorms).__name__}."
+            )
+        if not isinstance(self.ref_dorms, list):
+            raise TypeError(
+                f"Expected 'ref_dorms' to be a list, got {type(self.ref_dorms).__name__}."
+            )
+        if len(self.alt_dorms) != self.num_obs:
+            raise ValueError(
+                f"Expected 'alt_dorms' to have length {self.num_obs}, got {len(self.alt_dorms)}."
+            )
+        if len(self.ref_dorms) != self.num_obs:
+            raise ValueError(
+                f"Expected 'ref_dorms' to have length {self.num_obs}, got {len(self.ref_dorms)}."
+            )
 
-        if self.study_id is not None:
-            assert self.study_id.shape == (self.num_obs,)
+        # covs validation
+        if not isinstance(self.covs, pd.DataFrame):
+            raise TypeError(
+                f"Expected 'covs' to be a pandas DataFrame, got {type(self.covs).__name__}."
+            )
+        if self.covs.shape[1] != self.num_covs:
+            raise ValueError(
+                f"Expected 'covs' to have {self.num_covs} columns, got {self.covs.shape[1]}."
+            )
 
-        assert len(set(self.data_id)) == self.num_obs, (
-            "data_id has to be unique for each data point."
-        )
+        if self.study_id is not None and self.study_id.shape != (self.num_obs,):
+            raise ValueError(
+                f"Expected 'study_id' to have shape ({self.num_obs},), got {self.study_id.shape}."
+            )
+        if len(set(self.data_id)) != self.num_obs:
+            raise ValueError("data_id has to be unique for each data point.")
+
 
     def _process_df(self, raw_df, raw_alt_dorms, raw_ref_dorms, raw_obs_se):
         self.obs = None if self.col_obs is None else raw_df[self.col_obs].values
@@ -174,7 +207,7 @@ class CWData:
         self.max_alt_dorm = self.unique_alt_dorms[np.argmax(self.alt_dorm_sizes)]
         self.min_alt_dorm = self.unique_alt_dorms[np.argmin(self.alt_dorm_sizes)]
         self.max_ref_dorm = self.unique_ref_dorms[np.argmax(self.ref_dorm_sizes)]
-        self.min_alt_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
+        self.min_ref_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
 
         self.dorm_idx = {dorm: i for i, dorm in enumerate(self.unique_dorms)}
 
@@ -188,7 +221,11 @@ class CWData:
             self.num_studies, self.study_sizes, self.unique_study_id = (
                 utils.array_structure(self.study_id)
             )
+        self.sort_by_study_id()
 
+
+
+        
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id."""
         if self.study_id is not None:
@@ -203,8 +240,14 @@ class CWData:
 
     def copy_dorm_structure(self, cwdata):
         """Copy the dorm structure from other"""
-        assert cwdata.num_dorms >= self.num_dorms
-        assert all([dorm in cwdata.unique_dorms for dorm in self.unique_dorms])
+        if cwdata.num_dorms < self.num_dorms:
+            raise ValueError(
+                "number of dorms in provided must be greater than or equal to number of dorms in current CWData instance"
+            )
+        if not set(self.unique_dorms).issubset(cwdata.unique_dorms):
+            raise ValueError(
+                "at least 1 dorm in this instance's unique_dorms is not in the provided CWData's unique dorms"
+            )
 
         self.num_dorms = cwdata.num_dorms
         self.unique_dorms = cwdata.unique_dorms
@@ -213,9 +256,9 @@ class CWData:
     def __repr__(self):
         """Summary of the object."""
         dimension_summary = [
-            "number of observations: %i" % self.num_obs,
-            "number of covariates  : %i" % self.num_covs,
-            "number of defs/methods: %i" % self.num_dorms,
-            "number of studies     : %i" % self.num_studies,
+            f"number of observations: {self.num_obs}",
+            f"number of covariates  : {self.num_covs}",
+            f"number of defs/methods: {self.num_dorms}",
+            f"number of studies     : {self.num_studies}",
         ]
         return "\n".join(dimension_summary)

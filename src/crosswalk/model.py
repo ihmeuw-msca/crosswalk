@@ -15,7 +15,9 @@ import pandas as pd
 from limetr import LimeTr
 from xspline import XSpline
 
-from . import data, utils
+from crosswalk import data, utils
+
+__all__ = ["CovModel", "CWModel"]
 
 
 class CovModel:
@@ -52,13 +54,34 @@ class CovModel:
                 Same as the ``prior_beta_uniform``
         """
         # check the input
-        assert isinstance(cov_name, str)
-        assert isinstance(spline, XSpline) or spline is None
-        if spline_monotonicity is not None:
-            assert spline_monotonicity in ["increasing", "decreasing"]
-        if spline_convexity is not None:
-            assert spline_convexity in ["convex", "concave"]
-        assert isinstance(soln_name, str) or soln_name is None
+        if not isinstance(cov_name, str):
+            raise TypeError(
+                f"Expected 'cov_name' to be a string, got {type(cov_name).__name__}."
+            )
+        if spline is not None and not isinstance(spline, XSpline):
+            raise TypeError(
+                f"Expected 'spline' to be an XSpline instance or None, got {type(spline).__name__}."
+            )
+        if spline_monotonicity is not None and spline_monotonicity not in [
+            "increasing",
+            "decreasing",
+        ]:
+            raise ValueError(
+                f"Expected 'spline_monotonicity' to be 'increasing' or 'decreasing', "
+                f"got '{spline_monotonicity}'."
+            )
+        if spline_convexity is not None and spline_convexity not in [
+            "convex",
+            "concave",
+        ]:
+            raise ValueError(
+                f"Expected 'spline_convexity' to be 'convex' or 'concave', "
+                f"got '{spline_convexity}'."
+            )
+        if soln_name is not None and not isinstance(soln_name, str):
+            raise TypeError(
+                f"Expected 'soln_name' to be a string or None, got {type(soln_name).__name__}."
+            )
 
         self.cov_name = cov_name
         self.spline = spline
@@ -92,9 +115,10 @@ class CovModel:
             numpy.ndarray:
                 Return the design matrix from linear cov or spline.
         """
-        assert self.cov_name in cwdata.covs.columns, (
-            "Unkown covariates, not appear in the data."
-        )
+        if self.cov_name not in cwdata.covs.columns:
+            raise ValueError(
+                f"Unknown covariate '{self.cov_name}'. It does not appear in the data."
+            )
         cov = cwdata.covs[self.cov_name].values
         if self.use_spline:
             mat = self.spline.design_mat(cov)[:, 1:]
@@ -197,14 +221,30 @@ class CWModel:
 
     def check_inputs(self):
         """Check input type, dimension and values."""
-        assert isinstance(self.cwdata, data.CWData)
-        assert self.obs_type in ["diff_log", "diff_logit"], "Unsupport observation type"
-        assert isinstance(self.cov_models, list)
-        assert all([isinstance(model, CovModel) for model in self.cov_models])
-
-        assert self.gold_dorm in self.cwdata.unique_dorms
-
-        assert self.order_prior is None or isinstance(self.order_prior, list)
+        if not isinstance(self.cwdata, data.CWData):
+            raise TypeError(
+                f"Expected 'cwdata' to be a data.CWData instance, got {type(self.cwdata).__name__}."
+            )
+        if self.obs_type not in ["diff_log", "diff_logit"]:
+            raise ValueError(
+                f"Unsupported observation type '{self.obs_type}'. Expected 'diff_log' or 'diff_logit'."
+            )
+        if not isinstance(self.cov_models, list):
+            raise TypeError(
+                f"Expected 'cov_models' to be a list, got {type(self.cov_models).__name__}."
+            )
+        if not all(isinstance(model, CovModel) for model in self.cov_models):
+            raise TypeError(
+                "All elements in 'cov_models' must be instances of CovModel."
+            )
+        if self.gold_dorm not in self.cwdata.unique_dorms:
+            raise ValueError(
+                f"The 'gold_dorm' ({self.gold_dorm}) is not present in cwdata's unique_dorms."
+            )
+        if self.order_prior is not None and not isinstance(self.order_prior, list):
+            raise TypeError(
+                f"Expected 'order_prior' to be a list or None, got {type(self.order_prior).__name__}."
+            )
 
     def _setup_obs_functions(self):
 
@@ -290,6 +330,15 @@ class CWModel:
         gprior[:, self.var_idx[self.gold_dorm]] = np.array([[0.0], [np.inf]])
         self.prior_beta_gaussian = gprior
 
+        # place holder for the solutions
+        self.beta = None
+        self.beta_sd = None
+        self.gamma = None
+        self.fixed_vars = None
+        self.random_vars = None
+
+        
+
     def _assert_covs_independent(self):
         """Check if the covariates are independent."""
         rank = np.linalg.matrix_rank(self.cov_mat)
@@ -323,7 +372,10 @@ class CWModel:
                 and -1 encode reference definition.
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
-        assert isinstance(cwdata, data.CWData)
+        if not isinstance(cwdata, data.CWData):
+            raise TypeError(
+                f"expected 'cwdata' to be an instance of CWData, got {type(cwdata).__name__} instead"
+            )
 
         relation_mat = np.zeros((cwdata.num_obs, cwdata.num_dorms))
         for i, dorms in enumerate(cwdata.alt_dorms):
@@ -363,8 +415,10 @@ class CWModel:
                 Returns covarites matrix.
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
-        assert isinstance(cwdata, data.CWData)
-
+        if not isinstance(cwdata, data.CWData):
+            raise TypeError(
+                f"expected 'cwdata' to be an instance of CWData, got {type(cwdata).__name__} instead"
+            )
         return np.hstack([model.create_design_mat(cwdata) for model in self.cov_models])
 
     def create_design_mat(self, cwdata=None, relation_mat=None, cov_mat=None):

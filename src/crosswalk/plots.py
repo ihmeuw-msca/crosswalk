@@ -1,16 +1,20 @@
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-from . import utils
+
+from crosswalk import utils
+
+__all__ = ["dose_response_curve", "funnel_plot"]
 
 
 def dose_response_curve(
     dose_variable,
     obs_method,
-    continuous_variables=[],
-    binary_variables={},
+    continuous_variables=None,
+    binary_variables=None,
     plots_dir=None,
     cwdata=None,
     cwmodel=None,
@@ -54,6 +58,8 @@ def dose_response_curve(
             If True, `plots_dir` should be specified too.
 
     """
+    continuous_variables = [] if continuous_variables is None else continuous_variables
+    binary_variables = {} if binary_variables is None else binary_variables
     # All covariates in cwmodel should be specified.
     cwmodel_covs = [
         cwmodel.cov_models[ix].cov_name for ix in range(len(cwmodel.cov_models))
@@ -72,10 +78,10 @@ def dose_response_curve(
             [dose_variable] + continuous_variables + list(binary_variables.keys())
         )
 
-    assert set(cwmodel_covs) == set(specified_covs), (
-        "All covariates in cwmodel should be specified in "
-        "dose_variable or continuous_variables or binary_variables!"
-    )
+    if set(cwmodel_covs) != set(specified_covs):
+        raise ValueError(
+            "All covariates in cwmodel should be specified in dose_variable or continuous_variables or binary_variables!"
+        )
 
     # Modif Ariane: Join alt_dorms here to be able to use numpy ravel when creating the data frame
     if cwdata.dorm_separator is not None:
@@ -299,7 +305,8 @@ def dose_response_curve(
         plt.axvline(knot, color="navy", linestyle="--", alpha=0.5, linewidth=0.75)
     # Save plots
     if write_file:
-        assert plots_dir is not None, "plots_dir is not specified!"
+        if plots_dir is None:
+            raise ValueError("plots_dir is not specified")
         outfile = os.path.join(plots_dir, f"{file_name}.pdf")
         plt.savefig(outfile, orientation="landscape", bbox_inches="tight")
         print(f"Dose response plot saved at {outfile}")
@@ -347,7 +354,8 @@ def funnel_plot(
             If True, `plots_dir` should be specified too.
 
     """
-    assert obs_method in cwdata.unique_alt_dorms, f"{obs_method} not in alt_dorms!"
+    if obs_method not in cwdata.unique_alt_dorms:
+        raise ValueError(f"{obs_method} not in alt_dorms")
 
     data_df = pd.DataFrame(
         {
@@ -469,7 +477,8 @@ def funnel_plot(
         plt.title(content_string, fontsize=10)
     # Save plots
     if write_file:
-        assert plots_dir is not None, "plots_dir is not specified!"
+        if plots_dir is None:
+            raise ValueError("plots_dir is not specified")
         outfile = os.path.join(plots_dir, file_name + ".pdf")
         plt.savefig(outfile, orientation="landscape", bbox_inches="tight")
         print(f"Funnel plot saved at {outfile}")
