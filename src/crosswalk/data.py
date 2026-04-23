@@ -69,21 +69,18 @@ class CWData:
         self.col_study_id = study_id
         self.col_data_id = data_id
         self.dorm_separator = dorm_separator
-        self.obs = None if self.col_obs is None else df[self.col_obs].values
-        self.obs_se = None if obs_se is None else df[obs_se].values
 
-        self._extract_df_cols(
-            raw_df=df, raw_alt_dorms=alt_dorms, raw_ref_dorms=ref_dorms
+        self._process_df(
+            raw_df=df, raw_alt_dorms=alt_dorms, raw_ref_dorms=ref_dorms, raw_obs_se=obs_se
         )
 
-        # check inputs
-        self.check()
+        self.check_inputs()
 
         self._setup_dorm_structure()
         self._setup_study_structure()
         self.sort_by_study_id()
 
-    def check(self):
+    def check_inputs(self):
         """Check inputs type, shape and value."""
         assert self.obs is None or utils.is_numerical_array(
             self.obs, shape=(self.num_obs,)
@@ -109,7 +106,10 @@ class CWData:
             "data_id has to be unique for each data point."
         )
 
-    def _extract_df_cols(self, raw_df, raw_alt_dorms, raw_ref_dorms):
+    def _process_df(self, raw_df, raw_alt_dorms, raw_ref_dorms, raw_obs_se):
+        self.obs = None if self.col_obs is None else raw_df[self.col_obs].values
+        self.obs_se = None if raw_obs_se is None else raw_df[raw_obs_se].values
+
         alt_dorms = (
             raw_alt_dorms
             if self.col_alt_dorms is None
@@ -160,7 +160,6 @@ class CWData:
         self.num_covs = self.covs.shape[1]
 
     def _setup_dorm_structure(self):
-        # definition structure
         self.num_dorms, self.dorm_sizes, self.unique_dorms = utils.array_structure(
             self.alt_dorms + self.ref_dorms
         )

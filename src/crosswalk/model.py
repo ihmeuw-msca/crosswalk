@@ -179,8 +179,7 @@ class CWModel:
             )
             self.use_random_intercept = False
 
-        # check input
-        self.check()
+        self.check_inputs()
 
         self._setup_obs_functions()
         self._setup_vars_and_mats()
@@ -196,7 +195,7 @@ class CWModel:
         self.fixed_vars = None
         self.random_vars = None
 
-    def check(self):
+    def check_inputs(self):
         """Check input type, dimension and values."""
         assert isinstance(self.cwdata, data.CWData)
         assert self.obs_type in ["diff_log", "diff_logit"], "Unsupport observation type"
