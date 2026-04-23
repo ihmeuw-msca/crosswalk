@@ -73,7 +73,10 @@ class CWData:
         self.dorm_separator = dorm_separator
 
         self._process_df(
-            raw_df=df, raw_alt_dorms=alt_dorms, raw_ref_dorms=ref_dorms, raw_obs_se=obs_se
+            raw_df=df,
+            raw_alt_dorms=alt_dorms,
+            raw_ref_dorms=ref_dorms,
+            raw_obs_se=obs_se,
         )
 
         self.check_inputs()
@@ -137,7 +140,6 @@ class CWData:
             )
         if len(set(self.data_id)) != self.num_obs:
             raise ValueError("data_id has to be unique for each data point.")
-
 
     def _process_df(self, raw_df, raw_alt_dorms, raw_ref_dorms, raw_obs_se):
         self.obs = None if self.col_obs is None else raw_df[self.col_obs].values
@@ -223,9 +225,6 @@ class CWData:
             )
         self.sort_by_study_id()
 
-
-
-        
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id."""
         if self.study_id is not None:

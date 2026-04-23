@@ -337,8 +337,6 @@ class CWModel:
         self.fixed_vars = None
         self.random_vars = None
 
-        
-
     def _assert_covs_independent(self):
         """Check if the covariates are independent."""
         rank = np.linalg.matrix_rank(self.cov_mat)
