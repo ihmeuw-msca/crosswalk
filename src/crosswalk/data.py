@@ -70,95 +70,23 @@ class CWData:
         self.col_covs = covs
         self.col_study_id = study_id
         self.col_data_id = data_id
-
-        self.obs = None if self.col_obs is None else df[self.col_obs].values
-        self.obs_se = None if obs_se is None else df[obs_se].values
         self.dorm_separator = dorm_separator
-        alt_dorms = (
-            alt_dorms
-            if self.col_alt_dorms is None
-            else df[self.col_alt_dorms].to_numpy().astype(str)
-        )
-        ref_dorms = (
-            ref_dorms
-            if self.col_ref_dorms is None
-            else df[self.col_ref_dorms].to_numpy().astype(str)
-        )
-        self.alt_dorms = utils.process_dorms(
-            dorms=alt_dorms,
-            size=self.df.shape[0],
-            default_dorm="alt",
-            dorm_separator=self.dorm_separator,
-        )
-        self.ref_dorms = utils.process_dorms(
-            dorms=ref_dorms,
-            size=self.df.shape[0],
-            default_dorm="ref",
-            dorm_separator=self.dorm_separator,
+
+        self._process_df(
+            raw_df=df,
+            raw_alt_dorms=alt_dorms,
+            raw_ref_dorms=ref_dorms,
+            raw_obs_se=obs_se,
         )
 
-        self.covs = (
-            pd.DataFrame() if self.col_covs is None else df[self.col_covs].copy()
-        )
-        self.study_id = (
-            None if self.col_study_id is None else df[self.col_study_id].values
-        )
-        self.data_id = (
-            np.arange(self.df.shape[0])
-            if self.col_data_id is None
-            else df[self.col_data_id].values
-        )
+        self.check_inputs()
 
-        # dimensions of observations and covariates
-        self.num_obs = self.df.shape[0]
-        if self.covs.empty and not add_intercept:
-            warnings.warn(
-                "Covariates must at least include intercept."
-                "Adding intercept automatically."
-            )
-            add_intercept = True
-
-        if add_intercept:
-            self.covs["intercept"] = np.ones(self.num_obs)
-
-        self.num_covs = self.covs.shape[1]
-
-        # check inputs
-        self.check()
-
-        # definition structure
-        self.num_dorms, self.dorm_sizes, self.unique_dorms = utils.array_structure(
-            self.alt_dorms + self.ref_dorms
-        )
-        self.num_alt_dorms, self.alt_dorm_sizes, self.unique_alt_dorms = (
-            utils.array_structure(self.alt_dorms)
-        )
-        self.num_ref_dorms, self.ref_dorm_sizes, self.unique_ref_dorms = (
-            utils.array_structure(self.ref_dorms)
-        )
-        self.max_dorm = self.unique_dorms[np.argmax(self.dorm_sizes)]
-        self.min_dorm = self.unique_dorms[np.argmin(self.dorm_sizes)]
-        self.max_alt_dorm = self.unique_alt_dorms[np.argmax(self.alt_dorm_sizes)]
-        self.min_alt_dorm = self.unique_alt_dorms[np.argmin(self.alt_dorm_sizes)]
-        self.max_ref_dorm = self.unique_ref_dorms[np.argmax(self.ref_dorm_sizes)]
-        self.min_ref_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
-
-        self.dorm_idx = {dorm: i for i, dorm in enumerate(self.unique_dorms)}
-
-        # study structure
-        if self.study_id is None:
-            self.num_studies = 0
-            self.study_sizes = np.array([])
-            self.unique_study_id = None
-        else:
-            self.num_studies, self.study_sizes, self.unique_study_id = (
-                utils.array_structure(self.study_id)
-            )
+        self._setup_dorm_structure()
+        self._setup_study_structure()
         self.sort_by_study_id()
 
-    def check(self):
+    def check_inputs(self):
         """Check inputs type, shape and value."""
-        # obs_se validation
         if self.obs is not None and not utils.is_numerical_array(
             self.obs, shape=(self.num_obs,)
         ):
@@ -212,6 +140,90 @@ class CWData:
             )
         if len(set(self.data_id)) != self.num_obs:
             raise ValueError("data_id has to be unique for each data point.")
+
+    def _process_df(self, raw_df, raw_alt_dorms, raw_ref_dorms, raw_obs_se):
+        self.obs = None if self.col_obs is None else raw_df[self.col_obs].values
+        self.obs_se = None if raw_obs_se is None else raw_df[raw_obs_se].values
+
+        alt_dorms = (
+            raw_alt_dorms
+            if self.col_alt_dorms is None
+            else raw_df[self.col_alt_dorms].to_numpy().astype(str)
+        )
+        ref_dorms = (
+            raw_ref_dorms
+            if self.col_ref_dorms is None
+            else raw_df[self.col_ref_dorms].to_numpy().astype(str)
+        )
+        self.alt_dorms = utils.process_dorms(
+            dorms=alt_dorms,
+            size=self.df.shape[0],
+            default_dorm="alt",
+            dorm_separator=self.dorm_separator,
+        )
+        self.ref_dorms = utils.process_dorms(
+            dorms=ref_dorms,
+            size=self.df.shape[0],
+            default_dorm="ref",
+            dorm_separator=self.dorm_separator,
+        )
+
+        self.covs = (
+            pd.DataFrame() if self.col_covs is None else raw_df[self.col_covs].copy()
+        )
+        self.study_id = (
+            None if self.col_study_id is None else raw_df[self.col_study_id].values
+        )
+        self.data_id = (
+            np.arange(self.df.shape[0])
+            if self.col_data_id is None
+            else raw_df[self.col_data_id].values
+        )
+
+        # dimensions of observations and covariates
+        self.num_obs = self.df.shape[0]
+        if self.covs.empty and not self.add_intercept:
+            warnings.warn(
+                "Covariates must at least include intercept."
+                "Adding intercept automatically."
+            )
+            add_intercept = True
+
+        if add_intercept:
+            self.covs["intercept"] = np.ones(self.num_obs)
+
+        self.num_covs = self.covs.shape[1]
+
+    def _setup_dorm_structure(self):
+        self.num_dorms, self.dorm_sizes, self.unique_dorms = utils.array_structure(
+            self.alt_dorms + self.ref_dorms
+        )
+        self.num_alt_dorms, self.alt_dorm_sizes, self.unique_alt_dorms = (
+            utils.array_structure(self.alt_dorms)
+        )
+        self.num_ref_dorms, self.ref_dorm_sizes, self.unique_ref_dorms = (
+            utils.array_structure(self.ref_dorms)
+        )
+        self.max_dorm = self.unique_dorms[np.argmax(self.dorm_sizes)]
+        self.min_dorm = self.unique_dorms[np.argmin(self.dorm_sizes)]
+        self.max_alt_dorm = self.unique_alt_dorms[np.argmax(self.alt_dorm_sizes)]
+        self.min_alt_dorm = self.unique_alt_dorms[np.argmin(self.alt_dorm_sizes)]
+        self.max_ref_dorm = self.unique_ref_dorms[np.argmax(self.ref_dorm_sizes)]
+        self.min_ref_dorm = self.unique_ref_dorms[np.argmin(self.ref_dorm_sizes)]
+
+        self.dorm_idx = {dorm: i for i, dorm in enumerate(self.unique_dorms)}
+
+    def _setup_study_structure(self):
+        # study structure
+        if self.study_id is None:
+            self.num_studies = 0
+            self.study_sizes = np.array([])
+            self.unique_study_id = None
+        else:
+            self.num_studies, self.study_sizes, self.unique_study_id = (
+                utils.array_structure(self.study_id)
+            )
+        self.sort_by_study_id()
 
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id."""

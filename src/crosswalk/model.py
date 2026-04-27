@@ -203,8 +203,50 @@ class CWModel:
             )
             self.use_random_intercept = False
 
-        # check input
-        self.check()
+        self.check_inputs()
+
+        self._setup_obs_functions()
+        self._setup_vars_and_mats()
+        self._setup_priors(
+            raw_prior_gamma_uniform=prior_gamma_uniform,
+            raw_prior_gamma_gaussian=prior_gamma_gaussian,
+        )
+
+        # place holder for the solutions
+        self.beta = None
+        self.beta_sd = None
+        self.gamma = None
+        self.fixed_vars = None
+        self.random_vars = None
+
+    def check_inputs(self):
+        """Check input type, dimension and values."""
+        if not isinstance(self.cwdata, data.CWData):
+            raise TypeError(
+                f"Expected 'cwdata' to be a data.CWData instance, got {type(self.cwdata).__name__}."
+            )
+        if self.obs_type not in ["diff_log", "diff_logit"]:
+            raise ValueError(
+                f"Unsupported observation type '{self.obs_type}'. Expected 'diff_log' or 'diff_logit'."
+            )
+        if not isinstance(self.cov_models, list):
+            raise TypeError(
+                f"Expected 'cov_models' to be a list, got {type(self.cov_models).__name__}."
+            )
+        if not all(isinstance(model, CovModel) for model in self.cov_models):
+            raise TypeError(
+                "All elements in 'cov_models' must be instances of CovModel."
+            )
+        if self.gold_dorm not in self.cwdata.unique_dorms:
+            raise ValueError(
+                f"The 'gold_dorm' ({self.gold_dorm}) is not present in cwdata's unique_dorms."
+            )
+        if self.order_prior is not None and not isinstance(self.order_prior, list):
+            raise TypeError(
+                f"Expected 'order_prior' to be a list or None, got {type(self.order_prior).__name__}."
+            )
+
+    def _setup_obs_functions(self):
 
         # create function for prediction
         if self.obs_type == "diff_log":
@@ -226,6 +268,7 @@ class CWModel:
         self.obs_fun = obs_fun
         self.obs_inv_fun = obs_inv_fun
 
+    def _setup_vars_and_mats(self):
         # variable names
         self.vars = [dorm for dorm in self.cwdata.unique_dorms]
 
@@ -247,11 +290,12 @@ class CWModel:
         self._assert_rank_efficient()
         self.constraint_mat = self.create_constraint_mat()
 
+    def _setup_priors(self, raw_prior_gamma_uniform, raw_prior_gamma_gaussian):
         # gamma bounds
         self.prior_gamma_uniform = (
             np.array([0.0, np.inf])
-            if prior_gamma_uniform is None
-            else np.array(prior_gamma_uniform)
+            if raw_prior_gamma_uniform is None
+            else np.array(raw_prior_gamma_uniform)
         )
         if not self.use_random_intercept:
             self.prior_gamma_uniform = np.zeros(2)
@@ -264,8 +308,8 @@ class CWModel:
         # gamma Gaussian prior
         self.prior_gamma_gaussian = (
             np.array([0.0, np.inf])
-            if prior_gamma_gaussian is None
-            else np.array(prior_gamma_gaussian)
+            if raw_prior_gamma_gaussian is None
+            else np.array(raw_prior_gamma_gaussian)
         )
         if not self.use_random_intercept:
             self.prior_gamma_gaussian = np.array([0.0, np.inf])
@@ -292,33 +336,6 @@ class CWModel:
         self.gamma = None
         self.fixed_vars = None
         self.random_vars = None
-
-    def check(self):
-        """Check input type, dimension and values."""
-        if not isinstance(self.cwdata, data.CWData):
-            raise TypeError(
-                f"Expected 'cwdata' to be a data.CWData instance, got {type(self.cwdata).__name__}."
-            )
-        if self.obs_type not in ["diff_log", "diff_logit"]:
-            raise ValueError(
-                f"Unsupported observation type '{self.obs_type}'. Expected 'diff_log' or 'diff_logit'."
-            )
-        if not isinstance(self.cov_models, list):
-            raise TypeError(
-                f"Expected 'cov_models' to be a list, got {type(self.cov_models).__name__}."
-            )
-        if not all(isinstance(model, CovModel) for model in self.cov_models):
-            raise TypeError(
-                "All elements in 'cov_models' must be instances of CovModel."
-            )
-        if self.gold_dorm not in self.cwdata.unique_dorms:
-            raise ValueError(
-                f"The 'gold_dorm' ({self.gold_dorm}) is not present in cwdata's unique_dorms."
-            )
-        if self.order_prior is not None and not isinstance(self.order_prior, list):
-            raise TypeError(
-                f"Expected 'order_prior' to be a list or None, got {type(self.order_prior).__name__}."
-            )
 
     def _assert_covs_independent(self):
         """Check if the covariates are independent."""
