@@ -34,34 +34,34 @@ class CWData:
         data_id: str | None = None,
         add_intercept: bool = True,
     ) -> None:
-        """Constructor of CWData
+        """Constructor of CWData.
 
         Parameters
         ----------
         df : pd.DataFrame
             Dataframe from csv file that store the data.
         obs : str | None, optional
-            Observations of the problem, can be log or logit differences, by default None
+            Observations of the problem, can be log or logit differences, by default None.
         obs_se : str | None, optional
-            Standard error of the observations, by default None
+            Standard error of the observations, by default None.
         alt_dorms : str | None, optional
-            Alternative definitions/methods for each observation, by default None
+            Alternative definitions/methods for each observation, by default None.
         ref_dorms : str | None, optional
-            Reference definitions/methods for each observation, by default None
+            Reference definitions/methods for each observation, by default None.
         dorm_separator : str | None, optional
-            Used when there are multiple definitions in alt_dorms or ref_dorms.
+            Used when there are multiple definitions in `alt_dorms` or `ref_dorms`.
             Will decompose the dorm by this separator into multiple dorms.
-            If None, assume single dorm for alt_dorms and ref_dorms, by default None
+            If None, assume single dorm for `alt_dorms` and `ref_dorms`, by default None.
         covs : list[str], optional
-            Covariates linearly parametrized the observation, by default None
+            Covariates linearly parametrized the observation, by default None.
         study_id : str | None, optional
-            Study id for each observation, by default None
+            Study id for each observation, by default None.
         data_id : str | None, optional
             ID for each data, if pass in column, it requires the elements in the column
-            to be different from each other. If ``None``, the program will generate
-            a integer sequence from 0 to ``num_obs`` to serve as the data_id, by default None
+            to be different from each other. If `None`, the program will generate
+            a integer sequence from 0 to `num_obs` to serve as the `data_id`, by default None.
         add_intercept : bool, optional
-            If `True`, add intercept to the current covariates, by default True
+            If `True`, add intercept to the current covariates, by default True.
         """
         self.df = df
 
@@ -228,7 +228,7 @@ class CWData:
             self.covs = self.covs.reindex(sort_id)
 
     def copy_dorm_structure(self, cwdata: CWData) -> None:
-        """Copy the dorm structure from other"""
+        """Copy the dorm structure from other."""
         if cwdata.num_dorms < self.num_dorms:
             raise ValueError(
                 "number of dorms in provided must be greater than or equal to number of dorms in current CWData instance"

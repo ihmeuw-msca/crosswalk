@@ -28,7 +28,7 @@ def dose_response_curve(
     plot_note: str | None = None,
     write_file: bool = False,
 ) -> None:
-    """Dose response curve
+    """Dose response curve.
 
     Parameters
     ----------
@@ -37,30 +37,30 @@ def dose_response_curve(
     obs_method : str
         Alternative definition or method intended to be plotted.
     continuous_variables : list, optional
-        List of continuous covariate names, by default []
+        List of continuous covariate names, by default [].
     binary_variables : dict, optional
         A dictionary to specify the values for binary variables.
-        Options for values: 'median', 'mean', or certain value
-        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}, by default {}
+        Options for values: 'median', 'mean', or certain value.
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}, by default {}.
     plots_dir : str | None, optional
-        Directory where to save the plot, by default None
+        Directory where to save the plot, by default None.
     cwdata : CWData | None, optional
-        CrossWalk data object, by default None
+        CrossWalk data object, by default None.
     cwmodel : CWModel | None, optional
-        Fitted CrossWalk model object, by default None
+        Fitted CrossWalk model object, by default None.
     file_name : str, optional
-        File name for the plot, by default "dose_response_plot"
+        File name for the plot, by default "dose_response_plot".
     from_zero : bool, optional
-        If set to be True, y-axis will start from zero, by default False
+        If set to be True, y-axis will start from zero, by default False.
     include_bias : bool, optional
-        Whether to include bias or not, by default False
+        Whether to include bias or not, by default False.
     ylim : Sequence[int] | Sequence[float] | None, optional
-        y-axis bound. E.g. [0, 10], by default None
+        Y-axis bound. E.g. [0, 10], by default None.
     plot_note : str | None, optional
-        The notes intended to be written on the title, by default None
+        The notes intended to be written on the title, by default None.
     write_file : bool, optional
         Specify `True` if the plot is expected to be saved on disk.
-        If True, `plots_dir` should be specified too, by default False
+        If True, `plots_dir` should be specified too, by default False.
 
     """
     continuous_variables = [] if continuous_variables is None else continuous_variables
@@ -332,33 +332,33 @@ def funnel_plot(
     include_bias: bool = False,
     write_file: str = False,
 ) -> None:
-    """funnel plot
+    """Funnel plot.
 
     Parameters
     ----------
     obs_method : str, optional
-        Alternative definition or method intended to be plotted, by default "Self-reported"
+        Alternative definition or method intended to be plotted, by default "Self-reported".
     cwdata : CWData | None, optional
-        CrossWalk data object, by default None
+        CrossWalk data object, by default None.
     cwmodel : CWModel | None, optional
-        Fitted CrossWalk model object, by default None
+        Fitted CrossWalk model object, by default None.
     continuous_variables : list, optional
-        List of continuous covariate names, by default []
+        List of continuous covariate names, by default [].
     binary_variables : dict, optional
         A dictionary to specify the values for binary variables.
-        Options for values: 'median', 'mean', or certain value
-        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}, by default {}
+        Options for values: 'median', 'mean', or certain value.
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}, by default {}.
     plots_dir : str | None, optional
-        Directory where to save the plot, by default None
+        Directory where to save the plot, by default None.
     file_name : str, optional
-        File name for the plot, by default "funnel_plot"
+        File name for the plot, by default "funnel_plot".
     plot_note : str | None, optional
-        The notes intended to be written on the title, by default None
+        The notes intended to be written on the title, by default None.
     include_bias : bool, optional
-        Whether to include bias or not, by default False
+        Whether to include bias or not, by default False.
     write_file : str, optional
         Specify `True` if the plot is expected to be saved on disk.
-        If True, `plots_dir` should be specified too, by default False
+        If True, `plots_dir` should be specified too, by default False.
     """
     continuous_variables = [] if continuous_variables is None else continuous_variables
     binary_variables = {} if binary_variables is None else binary_variables

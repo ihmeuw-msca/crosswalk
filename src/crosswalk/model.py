@@ -35,28 +35,28 @@ class CovModel:
         prior_beta_uniform: dict[str, tuple[float, float]] | None = None,
         prior_beta_gaussian: dict[str, tuple[float, float]] | None = None,
     ) -> None:
-        """Constructor of the CovModel
+        """Constructor of the CovModel.
 
         Parameters
         ----------
         cov_name : str
             Corresponding covariate name.
         spline : XSpline | None, optional
-            If using spline, passing in spline object, by default None
+            If using spline, passing in spline object, by default None.
         spline_monotonicity : str | None, optional
             Spline shape prior, indicate if spline is increasing or decreasing,
-            by default None
+            by default None.
         spline_convexity : str | None, optional
             Spline shape prior, indicate if spline is convex or concave,
-            by default None
+            by default None.
         soln_name : str | None, optional
-            Name of the corresponding covariates multiplier, if None defaults to cov_name, by default None
+            Name of the corresponding covariates multiplier, if None defaults to `cov_name`, by default None.
         prior_beta_uniform : dict[str, tuple[float, float]] | None, optional
             Uniform prior for beta, default to None. Otherwise should pass in
             a dictionary with key as the dorm name and value as the uniform prior,
-            by default None
+            by default None.
         prior_beta_gaussian : dict[str, tuple[float, float]] | None, optional
-            Same as the ``prior_beta_uniform``, by default None
+            Same as the `prior_beta_uniform`, by default None.
         """
         # check the input
         if not isinstance(cov_name, str):
@@ -110,7 +110,7 @@ class CovModel:
             self.num_vars = 1
 
     def create_design_mat(self, cwdata: CWData) -> npt.NDArray:
-        """Create design matrix
+        """Create design matrix.
 
         Parameters
         ----------
@@ -134,12 +134,12 @@ class CovModel:
         return mat
 
     def create_constraint_mat(self, num_points: int = 20) -> npt.NDArray:
-        """create constraints matrix
+        """Create constraints matrix.
 
         Parameters
         ----------
         num_points : int, optional
-            Number of approximation points to cover the interval for spline, by default 20
+            Number of approximation points to cover the interval for spline, by default 20.
 
         Returns
         -------
@@ -189,7 +189,7 @@ class CWModel:
         prior_gamma_uniform: tuple[float, float] = None,
         prior_gamma_gaussian: tuple[float, float] = None,
     ) -> None:
-        """constructor of CWModel
+        """Constructor of CWModel.
 
         Parameters
         ----------
@@ -197,19 +197,19 @@ class CWModel:
             Data for cross walk.
         obs_type : str, optional
             Type of observation can only be chosen from `'diff_log'` and `'diff_logit'`,
-            by default "diff_log"
+            by default "diff_log".
         cov_models : Sequence[CovModel], optional
-            A list of covariate models for the definitions/methods, by default None
+            A list of covariate models for the definitions/methods, by default None.
         gold_dorm : str | None, optional
-            Gold standard definition/method, by default None
+            Gold standard definition/method, by default None.
         order_prior : Sequence[Sequence[str]], optional
-            Order priors between different definitions, by default None
+            Order priors between different definitions, by default None.
         use_random_intercept : bool, optional
-            If ``True``, use random intercept., by default True
+            If `True`, use random intercept., by default True.
         prior_gamma_uniform : tuple[float, float], optional
-            If not ``None``, use it as the bound of gamma, by default None
+            If not `None`, use it as the bound of gamma, by default None.
         prior_gamma_gaussian : tuple[float, float], optional
-            If not ``None``, use it as the gaussian prior of gamma., by default None
+            If not `None`, use it as the gaussian prior of gamma., by default None.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
@@ -362,12 +362,12 @@ class CWModel:
             )
 
     def create_relation_mat(self, cwdata: CWData | None = None) -> npt.NDArray:
-        """Creates relation matrix
+        """Creates relation matrix.
 
         Parameters
         ----------
         cwdata : CWData | None, optional
-            Optional data set, if None, use `self.cwdata`, by default None
+            Optional data set, if None, use `self.cwdata`, by default None.
 
         Returns
         -------
@@ -409,17 +409,17 @@ class CWModel:
             )
 
     def create_cov_mat(self, cwdata: CWData | None = None) -> npt.NDArray:
-        """Creates covariate matrix for definitons/methods model
+        """Creates covariate matrix for definitions/methods model.
 
         Parameters
         ----------
         cwdata : CWData | None, optional
-            Optional data set, if None, use `self.cwdata`, by default None
+            Optional data set, if None, use `self.cwdata`, by default None.
 
         Returns
         -------
         npt.NDArray
-            covariate matrix
+            Covariate matrix.
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
         if not isinstance(cwdata, CWData):
@@ -434,16 +434,16 @@ class CWModel:
         relation_mat: npt.NDArray | None = None,
         cov_mat: npt.NDArray | None = None,
     ) -> npt.NDArray:
-        """create linear design matrix
+        """Create linear design matrix.
 
         Parameters
         ----------
         cwdata : CWData | None, optional
-            Optional data set, if None, use `self.cwdata`, by default None
+            Optional data set, if None, use `self.cwdata`, by default None.
         relation_mat : npt.NDArray | None, optional
-            Optional relation matrix, if None, use `self.relation_mat`, by default None
+            Optional relation matrix, if None, use `self.relation_mat`, by default None.
         cov_mat : npt.NDArray | None, optional
-            Optional covariates matrix, if None, use `self.cov_mat`, by default None
+            Optional covariates matrix, if None, use `self.cov_mat`, by default None.
 
         Returns
         -------
@@ -461,12 +461,12 @@ class CWModel:
         return mat
 
     def create_constraint_mat(self) -> npt.NDArray | None:
-        """create constraint matrix
+        """Create constraint matrix.
 
         Returns
         -------
         npt.NDArray | None
-            constraint matrix, if no constraints, return None
+            Constraint matrix, if no constraints, return None.
         """
         mat = np.array([]).reshape(0, self.num_vars)
         if self.order_prior is not None:
@@ -499,19 +499,19 @@ class CWModel:
         outer_max_iter: int = 100,
         outer_step_size: float = 1.0,
     ) -> None:
-        """Optimizes model parameters. This is an interface to limetr
+        """Optimizes model parameters. This is an interface to limetr.
 
         Parameters
         ----------
         max_iter : int, optional
-            Maximum number of iterations, by default 100
+            Maximum number of iterations, by default 100.
         inlier_pct : float, optional
-            How much percentage of the data do you trust, by default 1.0
+            How much percentage of the data do you trust, by default 1.0.
         outer_max_iter : int, optional
-            Outer maximum number of iterations, by default 100
+            Outer maximum number of iterations, by default 100.
         outer_step_size : float, optional
             Step size of the trimming problem, the larger the step size the faster it will converge,
-            and the less quality of trimming it will guarantee, by default 1.0
+            and the less quality of trimming it will guarantee, by default 1.0.
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
@@ -625,12 +625,12 @@ class CWModel:
         return cov_names
 
     def create_result_df(self) -> pd.DataFrame:
-        """create results dataframe
+        """Create results dataframe.
 
         Returns
         -------
         pd.DataFrame
-            DataFrame containing results
+            DataFrame containing results.
         """
         # column of dorms
         dorms = np.repeat(self.cwdata.unique_dorms, self.num_vars_per_dorm)
@@ -661,14 +661,14 @@ class CWModel:
         return df
 
     def save_result_df(self, folder: str, filename: str = "result.csv") -> None:
-        """save results to csv file
+        """Save results to csv file.
 
         Parameters
         ----------
         folder : str
             Path to the result folder.
         filename : str, optional
-            Name of the result, by default "result.csv"
+            Name of the result, by default "result.csv".
         """
         if not filename.endswith(".csv"):
             filename += ".csv"
@@ -685,7 +685,7 @@ class CWModel:
         data_id: str | None = None,
         ref_dorms: str | None = None,
     ) -> pd.DataFrame:
-        """adjusts alternative values
+        """Adjusts alternative values.
 
         Parameters
         ----------
@@ -700,12 +700,12 @@ class CWModel:
             Name of the column in `df` that contains the standard error of
             alternative values.
         study_id : str | None, optional
-            If not `None`, predict with the random effects, by default None
+            If not `None`, predict with the random effects, by default None.
         data_id : str | None, optional
-            If `None` create data_id by the integer sequence, by default None
+            If `None` create `data_id` by the integer sequence, by default None.
         ref_dorms : str | None, optional
-            Name of the column with reference dorms, if is ``None``, use the
-            gold_dorm as the reference dorm. Default to ``None``, by default None
+            Name of the column with reference dorms, if is `None`, use the
+            `gold_dorm` as the reference dorm. Default to `None`, by default None.
 
         Returns
         -------
