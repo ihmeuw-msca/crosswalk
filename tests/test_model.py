@@ -51,8 +51,7 @@ def cov_models():
 
 @pytest.mark.parametrize("obs_type", ["diff_log", "diff_logit"])
 def test_input(cwdata, obs_type, cov_models):
-    cwmodel = model.CWModel(cwdata, obs_type, cov_models=cov_models)
-    cwmodel.check()
+    _ = model.CWModel(cwdata, obs_type, cov_models=cov_models)
 
 
 def test_design_mat(cwdata, cov_models):

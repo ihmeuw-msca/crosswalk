@@ -545,16 +545,15 @@ class CWModel:
             c=cvec,
             inlier_percentage=inlier_pct,
         )
-        self.beta, self.gamma, self.w = self.lt.fitModel(
-            inner_print_level=5,
-            inner_max_iter=max_iter,
+        self.beta, self.gamma, self.w = self.lt.fit(
+            inner_options={"verbose": True, "maxiter": max_iter},
             outer_max_iter=outer_max_iter,
             outer_step_size=outer_step_size,
         )
 
         self.fixed_vars = {var: self.beta[self.var_idx[var]] for var in self.vars}
         if self.use_random_intercept:
-            u = self.lt.estimateRE()
+            u = self.lt.estimate_re()
             self.random_vars = {
                 sid: u[i] for i, sid in enumerate(self.cwdata.unique_study_id)
             }
@@ -576,15 +575,14 @@ class CWModel:
     def get_beta_hessian(self) -> np.ndarray:
         # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta) * np.sqrt(self.lt.w)[:, None]
-        z = self.lt.Z * np.sqrt(self.lt.w)[:, None]
-        v = limetr.utils.VarMat(self.lt.V**self.lt.w, z, self.lt.gamma, self.lt.n)
+        v = limetr.get_varmat(self.lt)
 
         if hasattr(self.lt, "gprior"):
             beta_gprior_sd = self.lt.gprior[:, self.lt.idx_beta][1]
         else:
             beta_gprior_sd = np.repeat(np.inf, self.lt.k_beta)
 
-        hessian = x.T.dot(v.invDot(x)) + np.diag(1.0 / beta_gprior_sd**2)
+        hessian = x.T.dot(v.invdot(x)) + np.diag(1.0 / beta_gprior_sd**2)
         hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=0)
         hessian = np.delete(hessian, self.var_idx[self.gold_dorm], axis=1)
 

@@ -71,6 +71,7 @@ class CWData:
         self.col_study_id = study_id
         self.col_data_id = data_id
         self.dorm_separator = dorm_separator
+        self.add_intercept = add_intercept
 
         self._process_df(
             raw_df=df,
@@ -182,7 +183,8 @@ class CWData:
 
         # dimensions of observations and covariates
         self.num_obs = self.df.shape[0]
-        if self.covs.empty and not self.add_intercept:
+        add_intercept = self.add_intercept
+        if self.covs.empty and not add_intercept:
             warnings.warn(
                 "Covariates must at least include intercept."
                 "Adding intercept automatically."
