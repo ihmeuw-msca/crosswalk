@@ -655,6 +655,7 @@ class CWModel:
         study_id=None,
         data_id=None,
         ref_dorms=None,
+        include_gamma: bool = True,
     ):
         """Adjust alternative values.
 
@@ -676,6 +677,11 @@ class CWModel:
             ref_dorms (str, optional):
                 Name of the column with reference dorms, if is ``None``, use the
                 gold_dorm as the reference dorm. Default to ``None``.
+            include_gamma (bool, optional):
+                If ``True`` (default), propagate the between-study variance
+                ``gamma`` into the adjusted standard error. If ``False``, omit
+                it so the returned SE reflects only the original measurement SE
+                and the fixed-effect prediction uncertainty. Default to ``True``.
 
         Returns:
             pandas.DataFrame:
@@ -744,12 +750,15 @@ class CWModel:
                 ]
             )
         )
-        gamma = np.array(
-            [
-                self.gamma[0] if dorm != self.gold_dorm else 0.0
-                for dorm in df[orig_dorms]
-            ]
-        )
+        if include_gamma:
+            gamma = np.array(
+                [
+                    self.gamma[0] if dorm != self.gold_dorm else 0.0
+                    for dorm in df[orig_dorms]
+                ]
+            )
+        else:
+            gamma = np.zeros(df.shape[0])
 
         transformed_ref_vals_mean = (
             transformed_orig_vals_mean - pred_diff_mean - random_effects
