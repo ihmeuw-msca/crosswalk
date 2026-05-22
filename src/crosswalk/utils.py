@@ -9,12 +9,12 @@ from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
+from numpy.typing import NDArray
 from scipy.stats import norm
 
 
 def is_numerical_array(
-    x: npt.NDArray,
+    x: NDArray,
     shape: tuple[int, int] | None = None,
     not_nan: bool = True,
     not_inf: bool = True,
@@ -23,10 +23,11 @@ def is_numerical_array(
 
     Parameters
     ----------
-    x : npt.NDArray
+    x : NDArray
         The array being checked.
     shape : tuple[int, int], optional
-        The shape of the array, by default None.
+        The shape of the array. If None, shape validation is skipped and only
+        dtype/NaN/inf checks are performed, by default None.
     not_nan : bool, optional
         Optional variable check if the array contains nan, by default True.
     not_inf : bool, optional
@@ -51,12 +52,12 @@ def is_numerical_array(
     return ok
 
 
-def sizes_to_indices(sizes: npt.NDArray) -> list[range]:
+def sizes_to_indices(sizes: NDArray) -> list[range]:
     """Converts sizes to corresponding indices.
 
     Parameters
     ----------
-    sizes : npt.NDArray
+    sizes : NDArray
         An array consisting of non-negative numbers.
 
     Returns
@@ -75,12 +76,12 @@ def sizes_to_indices(sizes: npt.NDArray) -> list[range]:
     return indices
 
 
-def sizes_to_slices(sizes: npt.NDArray) -> list[slice]:
+def sizes_to_slices(sizes: NDArray) -> list[slice]:
     """Converts sizes to corresponding slices.
 
     Parameters
     ----------
-    sizes : npt.NDArray
+    sizes : NDArray
         An array consisting of non-negative numbers.
 
     Returns
@@ -99,7 +100,7 @@ def sizes_to_slices(sizes: npt.NDArray) -> list[slice]:
     return slices
 
 
-def array_structure(x: Iterable) -> tuple[int, npt.NDArray, npt.NDArray]:
+def array_structure(x: Iterable) -> tuple[int, NDArray, NDArray]:
     """Return the structure of the array.
 
     Parameters
@@ -109,7 +110,7 @@ def array_structure(x: Iterable) -> tuple[int, npt.NDArray, npt.NDArray]:
 
     Returns
     -------
-    tuple[int, npt.NDArray, npt.NDArray]
+    tuple[int, NDArray, NDArray]
         Return the number of unique elements in the array, counts for each
         unique element and unique element.
     """
@@ -141,21 +142,19 @@ def default_input(input: type[Any], default: Any = None) -> type[Any] | None:
         return input
 
 
-def log_to_linear(
-    mean: npt.NDArray, sd: npt.NDArray
-) -> tuple[npt.NDArray, npt.NDArray]:
+def log_to_linear(mean: NDArray, sd: NDArray) -> tuple[NDArray, NDArray]:
     """Transform mean and standard deviation from log space to linear space using delta method.
 
     Parameters
     ----------
-    mean : npt.NDArray
+    mean : NDArray
         Mean in log space.
-    sd : npt.NDArray
+    sd : NDArray
         Standard deviation in log space.
 
     Returns
     -------
-    tuple[npt.NDArray, npt.NDArray]
+    tuple[NDArray, NDArray]
         Mean and standard deviation in linear space.
     """
     if mean.size != sd.size:
@@ -170,21 +169,19 @@ def log_to_linear(
     return linear_mean, linear_sd
 
 
-def linear_to_log(
-    mean: npt.NDArray, sd: npt.NDArray
-) -> tuple[npt.NDArray, npt.NDArray]:
+def linear_to_log(mean: NDArray, sd: NDArray) -> tuple[NDArray, NDArray]:
     """Transform mean and standard deviation from linear space to log space using delta method.
 
     Parameters
     ----------
-    mean : npt.NDArray
+    mean : NDArray
         Mean in linear space.
-    sd : npt.NDArray
+    sd : NDArray
         Standard deviation in linear space.
 
     Returns
     -------
-    tuple[npt.NDArray, npt.NDArray]
+    tuple[NDArray, NDArray]
         Mean and standard deviation in log space.
     """
     if mean.size != sd.size:
@@ -201,21 +198,19 @@ def linear_to_log(
     return log_mean, log_sd
 
 
-def logit_to_linear(
-    mean: npt.NDArray, sd: npt.NDArray
-) -> tuple[npt.NDArray, npt.NDArray]:
+def logit_to_linear(mean: NDArray, sd: NDArray) -> tuple[NDArray, NDArray]:
     """Transform mean and standard deviation from logit space to linear space using delta method.
 
     Parameters
     ----------
-    mean : npt.NDArray
+    mean : NDArray
         Mean in logit space.
-    sd : npt.NDArray
+    sd : NDArray
         Standard deviation in logit space.
 
     Returns
     -------
-    tuple[npt.NDArray, npt.NDArray]
+    tuple[NDArray, NDArray]
         Mean and standard deviation in linear space.
     """
     if mean.size != sd.size:
@@ -230,21 +225,19 @@ def logit_to_linear(
     return linear_mean, linear_sd
 
 
-def linear_to_logit(
-    mean: npt.NDArray, sd: npt.NDArray
-) -> tuple[npt.NDArray, npt.NDArray]:
+def linear_to_logit(mean: NDArray, sd: NDArray) -> tuple[NDArray, NDArray]:
     """Transform mean and standard deviation from linear space to logit space using delta method.
 
     Parameters
     ----------
-    mean : npt.NDArray
+    mean : NDArray
         Mean in linear space.
-    sd : npt.NDArray
+    sd : NDArray
         Standard deviation in linear space.
 
     Returns
     -------
-    tuple[npt.NDArray, npt.NDArray]
+    tuple[NDArray, NDArray]
         Mean and standard deviation in logit space.
     """
     if mean.size != sd.size:
@@ -303,19 +296,26 @@ def process_dorms(
     Parameters
     ----------
     dorms : str | None, optional
-        Input definition or methods, by default None.
+        Input definition or methods. If None, returns a list of
+        ``[[default_dorm]] * size``, assigning the same default label to all
+        observations. Requires ``size`` to be provided, by default None.
     size : int | None, optional
-        Size of the dorm array, only used and required when `dorms` is None, by default None.
+        Size of the dorm array, only used and required when `dorms` is None.
+        If None when ``dorms`` is also None, a ValueError is raised,
+        by default None.
     default_dorm : str, optional
         Default dorm used when `dorms` is None, by default "Unknown".
     dorm_separator : str | None, optional
-        Dorm separator for when multiple definition or methods present, by default None.
+        Dorm separator for when multiple definition or methods present. If
+        None, dorm strings are split on whitespace (Python's default
+        ``str.split(None)`` behavior), by default None.
 
     Returns
     -------
     list[list[str]]
-        List of list of definition or methods. The second layer of list is for convenience
-            when there are multiple definition or methods.
+        List of list of definition or methods. The second
+        layer of list is for convenience when there are
+        multiple definition or methods.
 
     Raises
     ------
@@ -330,23 +330,21 @@ def process_dorms(
         return [dorm.split(dorm_separator) for dorm in dorms]
 
 
-def p_value(
-    mean: npt.NDArray, std: npt.NDArray, one_tailed: bool = False
-) -> npt.NDArray:
+def p_value(mean: NDArray, std: NDArray, one_tailed: bool = False) -> NDArray:
     """Compute the p value from mean and standard deviation.
 
     Parameters
     ----------
-    mean : npt.NDArray
+    mean : NDArray
         Mean of the samples.
-    std : npt.NDArray
+    std : NDArray
         Standard deviation of the samples.
     one_tailed : bool, optional
         If `True` then use the one tailed test, by default False.
 
     Returns
     -------
-    npt.NDArray
+    NDArray
         An array of p-values.
     """
     if (std <= 0.0).any():

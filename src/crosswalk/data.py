@@ -41,25 +41,40 @@ class CWData:
         df : pd.DataFrame
             Dataframe from csv file that store the data.
         obs : str | None, optional
-            Observations of the problem, can be log or logit differences, by default None.
+            Observations of the problem, can be log or logit differences. If None,
+            the ``obs`` attribute is set to None and no observation values are
+            loaded from the dataframe, by default None.
         obs_se : str | None, optional
-            Standard error of the observations, by default None.
+            Standard error of the observations. If None, the ``obs_se`` attribute
+            is set to None and no standard error values are loaded from the
+            dataframe, by default None.
         alt_dorms : str | None, optional
-            Alternative definitions/methods for each observation, by default None.
+            Alternative definitions/methods for each observation. If None, all
+            observations are assigned a default alternative definition label of
+            ``"alt"`` via ``utils.process_dorms``, by default None.
         ref_dorms : str | None, optional
-            Reference definitions/methods for each observation, by default None.
+            Reference definitions/methods for each observation. If None, all
+            observations are assigned a default reference definition label of
+            ``"ref"`` via ``utils.process_dorms``, by default None.
         dorm_separator : str | None, optional
             Used when there are multiple definitions in `alt_dorms` or `ref_dorms`.
             Will decompose the dorm by this separator into multiple dorms.
-            If None, assume single dorm for `alt_dorms` and `ref_dorms`, by default None.
+            If None, dorm strings are split on whitespace (Python's default
+            ``str.split(None)`` behavior). If dorm values contain no whitespace,
+            this effectively treats each value as a single dorm, by default None.
         covs : list[str], optional
-            Covariates linearly parametrized the observation, by default None.
+            Covariates linearly parametrized the observation. If None, the
+            covariates DataFrame is initialized as empty; only the intercept
+            column will be present when ``add_intercept`` is True, by default None.
         study_id : str | None, optional
-            Study id for each observation, by default None.
+            Study id for each observation. If None, no study grouping is applied:
+            ``num_studies`` is set to 0, sorting by study ID is skipped, and
+            random intercepts cannot be used in the model, by default None.
         data_id : str | None, optional
             ID for each data, if pass in column, it requires the elements in the column
-            to be different from each other. If `None`, the program will generate
-            a integer sequence from 0 to `num_obs` to serve as the `data_id`, by default None.
+            to be different from each other. If `None`, the program
+            will generate an integer sequence from 0 to `num_obs` to
+            serve as the `data_id`, by default None.
         add_intercept : bool, optional
             If `True`, add intercept to the current covariates, by default True.
         """

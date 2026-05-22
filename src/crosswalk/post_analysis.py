@@ -170,6 +170,19 @@ class PostAnalysis:
         return pd.DataFrame(summary, index=[0])
 
     def plot_residual(self, ax: plt.Axes) -> plt.Axes:
+        """Plot residual funnel plot for publication bias visualization.
+
+        Parameters
+        ----------
+        ax : plt.Axes
+            Matplotlib axes to plot on. If None, a new figure and axes are
+            created via ``plt.subplots()``.
+
+        Returns
+        -------
+        plt.Axes
+            The axes with the residual funnel plot.
+        """
         # compute the residual and observation standard deviation
         residual = self.df["residual"]
         obs_se = self.df["residual_se"]

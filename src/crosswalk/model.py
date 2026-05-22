@@ -11,9 +11,9 @@ from collections.abc import Sequence
 
 import limetr
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from limetr import LimeTr
+from numpy.typing import NDArray
 from xspline import XSpline
 
 from crosswalk import utils
@@ -42,21 +42,29 @@ class CovModel:
         cov_name : str
             Corresponding covariate name.
         spline : XSpline | None, optional
-            If using spline, passing in spline object, by default None.
+            If using spline, passing in spline object. If None, the covariate
+            is treated as linear with a single variable (no spline basis
+            expansion), by default None.
         spline_monotonicity : str | None, optional
-            Spline shape prior, indicate if spline is increasing or decreasing,
+            Spline shape prior, indicate if spline is increasing or decreasing.
+            If None, no monotonicity constraint is applied to the spline,
             by default None.
         spline_convexity : str | None, optional
-            Spline shape prior, indicate if spline is convex or concave,
+            Spline shape prior, indicate if spline is convex or concave.
+            If None, no convexity constraint is applied to the spline,
             by default None.
         soln_name : str | None, optional
-            Name of the corresponding covariates multiplier, if None defaults to `cov_name`, by default None.
+            Name of the corresponding covariates multiplier.
+            If None, defaults to `cov_name`, by default None.
         prior_beta_uniform : dict[str, tuple[float, float]] | None, optional
-            Uniform prior for beta, default to None. Otherwise should pass in
-            a dictionary with key as the dorm name and value as the uniform prior,
-            by default None.
+            Uniform prior for beta. If None, defaults to an empty dict and no
+            uniform prior bounds are set for any definition/method. Otherwise
+            should pass in a dictionary with key as the dorm name and value as
+            the uniform prior, by default None.
         prior_beta_gaussian : dict[str, tuple[float, float]] | None, optional
-            Same as the `prior_beta_uniform`, by default None.
+            Gaussian prior for beta. If None, defaults to an empty dict and no
+            Gaussian prior is set for any definition/method. Same structure as
+            ``prior_beta_uniform``, by default None.
         """
         # check the input
         if not isinstance(cov_name, str):
@@ -109,7 +117,7 @@ class CovModel:
         else:
             self.num_vars = 1
 
-    def create_design_mat(self, cwdata: CWData) -> npt.NDArray:
+    def create_design_mat(self, cwdata: CWData) -> NDArray:
         """Create design matrix.
 
         Parameters
@@ -119,7 +127,7 @@ class CovModel:
 
         Returns
         -------
-        npt.NDArray
+        NDArray
             Return the design matrix from linear cov or spline.
         """
         if self.cov_name not in cwdata.covs.columns:
@@ -133,17 +141,18 @@ class CovModel:
             mat = cov[:, None]
         return mat
 
-    def create_constraint_mat(self, num_points: int = 20) -> npt.NDArray:
+    def create_constraint_mat(self, num_points: int = 20) -> NDArray:
         """Create constraints matrix.
 
         Parameters
         ----------
         num_points : int, optional
-            Number of approximation points to cover the interval for spline, by default 20.
+            Number of approximation points to cover the
+            interval for spline, by default 20.
 
         Returns
         -------
-        npt.NDArray
+        NDArray
             Return constraints matrix if have any.
         """
         mat = np.array([]).reshape(0, self.num_vars)
@@ -196,20 +205,30 @@ class CWModel:
         cwdata : CWData
             Data for cross walk.
         obs_type : str, optional
-            Type of observation can only be chosen from `'diff_log'` and `'diff_logit'`,
-            by default "diff_log".
+            Type of observation can only be chosen from
+            `'diff_log'` and `'diff_logit'`, by default "diff_log".
         cov_models : Sequence[CovModel], optional
-            A list of covariate models for the definitions/methods, by default None.
+            A list of covariate models for the definitions/methods. If None,
+            defaults to ``[CovModel("intercept")]`` (an intercept-only model),
+            by default None.
         gold_dorm : str | None, optional
-            Gold standard definition/method, by default None.
+            Gold standard definition/method. If None, defaults to
+            ``cwdata.max_ref_dorm`` (the reference definition with the most
+            observations), by default None.
         order_prior : Sequence[Sequence[str]], optional
-            Order priors between different definitions, by default None.
+            Order priors between different definitions. If None, no ordering
+            constraints between definitions are enforced, by default None.
         use_random_intercept : bool, optional
             If `True`, use random intercept., by default True.
         prior_gamma_uniform : tuple[float, float], optional
-            If not `None`, use it as the bound of gamma, by default None.
+            If not `None`, use it as the bound of gamma. If None, defaults to
+            ``[0.0, inf]``. Reset to ``[0, 0]`` when
+            ``use_random_intercept`` is False, by default None.
         prior_gamma_gaussian : tuple[float, float], optional
-            If not `None`, use it as the gaussian prior of gamma., by default None.
+            If not `None`, use it as the gaussian prior of gamma. If None,
+            defaults to ``[0.0, inf]``. Reset to
+            ``[0.0, inf]`` when ``use_random_intercept`` is False,
+            by default None.
         """
         self.cwdata = cwdata
         self.obs_type = obs_type
@@ -361,7 +380,7 @@ class CWModel:
                 f"Please include more effective data or reduce the number of covariates."
             )
 
-    def create_relation_mat(self, cwdata: CWData | None = None) -> npt.NDArray:
+    def create_relation_mat(self, cwdata: CWData | None = None) -> NDArray:
         """Creates relation matrix.
 
         Parameters
@@ -371,7 +390,7 @@ class CWModel:
 
         Returns
         -------
-        npt.NDArray
+        NDArray
             Returns relation matrix with 1 encode alternative definition
             and -1 encode reference definition.
 
@@ -408,7 +427,7 @@ class CWModel:
                 f"appearance. Please remove {unused_dorms} from alt_dorms and ref_dorms."
             )
 
-    def create_cov_mat(self, cwdata: CWData | None = None) -> npt.NDArray:
+    def create_cov_mat(self, cwdata: CWData | None = None) -> NDArray:
         """Creates covariate matrix for definitions/methods model.
 
         Parameters
@@ -418,7 +437,7 @@ class CWModel:
 
         Returns
         -------
-        npt.NDArray
+        NDArray
             Covariate matrix.
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
@@ -431,23 +450,25 @@ class CWModel:
     def create_design_mat(
         self,
         cwdata: CWData | None = None,
-        relation_mat: npt.NDArray | None = None,
-        cov_mat: npt.NDArray | None = None,
-    ) -> npt.NDArray:
+        relation_mat: NDArray | None = None,
+        cov_mat: NDArray | None = None,
+    ) -> NDArray:
         """Create linear design matrix.
 
         Parameters
         ----------
         cwdata : CWData | None, optional
             Optional data set, if None, use `self.cwdata`, by default None.
-        relation_mat : npt.NDArray | None, optional
-            Optional relation matrix, if None, use `self.relation_mat`, by default None.
-        cov_mat : npt.NDArray | None, optional
-            Optional covariates matrix, if None, use `self.cov_mat`, by default None.
+        relation_mat : NDArray | None, optional
+            Optional relation matrix, if None, use
+            `self.relation_mat`, by default None.
+        cov_mat : NDArray | None, optional
+            Optional covariates matrix, if None, use
+            `self.cov_mat`, by default None.
 
         Returns
         -------
-        npt.NDArray
+        NDArray
             Returns linear design matrix.
         """
         cwdata = utils.default_input(cwdata, default=self.cwdata)
@@ -460,12 +481,12 @@ class CWModel:
 
         return mat
 
-    def create_constraint_mat(self) -> npt.NDArray | None:
+    def create_constraint_mat(self) -> NDArray | None:
         """Create constraint matrix.
 
         Returns
         -------
-        npt.NDArray | None
+        NDArray | None
             Constraint matrix, if no constraints, return None.
         """
         mat = np.array([]).reshape(0, self.num_vars)
@@ -510,8 +531,10 @@ class CWModel:
         outer_max_iter : int, optional
             Outer maximum number of iterations, by default 100.
         outer_step_size : float, optional
-            Step size of the trimming problem, the larger the step size the faster it will converge,
-            and the less quality of trimming it will guarantee, by default 1.0.
+            Step size of the trimming problem, the larger
+            the step size the faster it will converge, and
+            the less quality of trimming it will guarantee,
+            by default 1.0.
         """
         # dimensions for limetr
         n = self.cwdata.study_sizes
@@ -595,7 +618,7 @@ class CWModel:
         self.beta_sd = np.zeros(self.lt.k_beta)
         self.beta_sd[unconstrained_id] = np.sqrt(np.diag(np.linalg.inv(hessian)))
 
-    def get_beta_hessian(self) -> npt.NDArray:
+    def get_beta_hessian(self) -> NDArray:
         # compute the posterior distribution of beta
         x = self.lt.JF(self.lt.beta) * np.sqrt(self.lt.w)[:, None]
         z = self.lt.Z * np.sqrt(self.lt.w)[:, None]

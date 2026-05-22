@@ -4,10 +4,11 @@ Scorelator
 
 import os
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from scipy.stats import norm
 
 from crosswalk.model import CWModel
@@ -56,7 +57,7 @@ class Scorelator:
             self.draw_bounds[1], scale=np.sqrt(gamma_ub + self.beta_sd**2)
         )
 
-    def get_score(self, use_gamma_ub: bool = False) -> npt.NDArray:
+    def get_score(self, use_gamma_ub: bool = False) -> NDArray:
         if use_gamma_ub:
             score = (
                 self.wider_draw_lb
@@ -79,6 +80,40 @@ class Scorelator:
         yscale: str | None = None,
         folder: str | Path = None,
     ):
+        """Plot the scorelator model results.
+
+        Parameters
+        ----------
+        ax : plt.Axes, optional
+            Matplotlib axes to plot on. If None, a new figure is created with
+            width scaled to the number of definitions, by default None.
+        title : str | None, optional
+            Plot title. If None, defaults to ``self.name``, by default None.
+        xlabel : str, optional
+            X-axis label, by default "definitions or methods".
+        ylabel : str, optional
+            Y-axis label, by default "ln relative risk".
+        xlim : tuple | None, optional
+            X-axis limits. If None, matplotlib determines limits automatically,
+            by default None.
+        ylim : tuple | None, optional
+            Y-axis limits. If None, matplotlib determines limits automatically,
+            by default None.
+        xscale : str | None, optional
+            X-axis scale (e.g. 'log'). If None, the x-axis scale is not
+            modified (linear by default), by default None.
+        yscale : str | None, optional
+            Y-axis scale (e.g. 'log'). If None, the y-axis scale is not
+            modified (linear by default), by default None.
+        folder : str | Path, optional
+            Directory to save the plot as PDF. If None, the plot is not saved
+            to disk, by default None.
+
+        Returns
+        -------
+        plt.Axes
+            The axes with the plotted model.
+        """
         if ax is None:
             fig = plt.figure(figsize=(4 * (self.model.cwdata.num_dorms - 1), 5))
             ax = fig.add_subplot()

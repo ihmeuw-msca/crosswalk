@@ -14,13 +14,13 @@ __all__ = ["dose_response_curve", "funnel_plot"]
 
 
 def dose_response_curve(
+    cwdata: CWData,
+    cwmodel: CWModel,
     dose_variable: str,
     obs_method: str,
     continuous_variables: list | None = None,
     binary_variables: dict | None = None,
     plots_dir: str | None = None,
-    cwdata: CWData | None = None,
-    cwmodel: CWModel | None = None,
     file_name: str = "dose_response_plot",
     from_zero: bool = False,
     include_bias: bool = False,
@@ -32,22 +32,27 @@ def dose_response_curve(
 
     Parameters
     ----------
+    cwdata : CWData
+        CrossWalk data object
+    cwmodel : CWModel
+        Fitted CrossWalk model object
     dose_variable : str
         Dose variable name.
     obs_method : str
         Alternative definition or method intended to be plotted.
     continuous_variables : list, optional
-        List of continuous covariate names, by default [].
+        List of continuous covariate names. If None, defaults to an empty list
+        (no continuous covariates are fixed at their median), by default [].
     binary_variables : dict, optional
         A dictionary to specify the values for binary variables.
         Options for values: 'median', 'mean', or certain value.
-        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}, by default {}.
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}. If
+        None, defaults to an empty dict (no binary variable values specified),
+        by default {}.
     plots_dir : str | None, optional
-        Directory where to save the plot, by default None.
-    cwdata : CWData | None, optional
-        CrossWalk data object, by default None.
-    cwmodel : CWModel | None, optional
-        Fitted CrossWalk model object, by default None.
+        Directory where to save the plot. If None and ``write_file`` is True,
+        a ValueError is raised. If ``write_file`` is False, this parameter is
+        unused, by default None.
     file_name : str, optional
         File name for the plot, by default "dose_response_plot".
     from_zero : bool, optional
@@ -55,9 +60,12 @@ def dose_response_curve(
     include_bias : bool, optional
         Whether to include bias or not, by default False.
     ylim : Sequence[int] | Sequence[float] | None, optional
-        Y-axis bound. E.g. [0, 10], by default None.
+        Y-axis bound. E.g. [0, 10]. If None, y-axis limits are determined
+        automatically by matplotlib, by default None.
     plot_note : str | None, optional
-        The notes intended to be written on the title, by default None.
+        The notes intended to be written on the title. If None, no suptitle
+        is added; only the beta content string is shown as the plot title,
+        by default None.
     write_file : bool, optional
         Specify `True` if the plot is expected to be saved on disk.
         If True, `plots_dir` should be specified too, by default False.
@@ -321,9 +329,9 @@ def dose_response_curve(
 
 
 def funnel_plot(
+    cwdata: CWData,
+    cwmodel: CWModel,
     obs_method: str = "Self-reported",
-    cwdata: CWData | None = None,
-    cwmodel: CWModel | None = None,
     continuous_variables: list | None = None,
     binary_variables: dict | None = None,
     plots_dir: str | None = None,
@@ -336,24 +344,32 @@ def funnel_plot(
 
     Parameters
     ----------
+    cwdata : CWData
+        CrossWalk data object
+    cwmodel : CWModel
+        Fitted CrossWalk model object
     obs_method : str, optional
-        Alternative definition or method intended to be plotted, by default "Self-reported".
-    cwdata : CWData | None, optional
-        CrossWalk data object, by default None.
-    cwmodel : CWModel | None, optional
-        Fitted CrossWalk model object, by default None.
+        Alternative definition or method intended to be
+        plotted, by default "Self-reported".
     continuous_variables : list, optional
-        List of continuous covariate names, by default [].
+        List of continuous covariate names. If None, defaults to an empty list
+        (no continuous covariates are fixed at their median), by default [].
     binary_variables : dict, optional
         A dictionary to specify the values for binary variables.
         Options for values: 'median', 'mean', or certain value.
-        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}, by default {}.
+        Example: binary_variables = {'sex_id': 1, 'age_id': 'median'}. If
+        None, defaults to an empty dict (no binary variable values specified),
+        by default {}.
     plots_dir : str | None, optional
-        Directory where to save the plot, by default None.
+        Directory where to save the plot. If None and ``write_file`` is True,
+        a ValueError is raised. If ``write_file`` is False, this parameter is
+        unused, by default None.
     file_name : str, optional
         File name for the plot, by default "funnel_plot".
     plot_note : str | None, optional
-        The notes intended to be written on the title, by default None.
+        The notes intended to be written on the title. If None, no suptitle
+        is added; only the beta content string is shown as the plot title,
+        by default None.
     include_bias : bool, optional
         Whether to include bias or not, by default False.
     write_file : str, optional
