@@ -624,7 +624,7 @@ class CWModel:
             gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
             re = np.hstack(
                 (
-                    self.lt.u,
+                    self.lt.estimate_re(),
                     np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan),
                 )
             )
