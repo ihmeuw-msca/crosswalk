@@ -109,6 +109,47 @@ def test_adjust_orig_vals(cwdata, cov_models, alt_dorm, ref_dorm):
     assert np.allclose(pred_df["data_id"], np.arange(pred_df.shape[0]))
 
 
+def test_adjust_orig_vals_include_gamma(cwdata, cov_models):
+    obs_type = "diff_log"
+    gold_dorm = "3"
+    alt_dorm = "2"
+    cwmodel = model.CWModel(
+        cwdata, obs_type, cov_models=cov_models, gold_dorm=gold_dorm
+    )
+    cwmodel.fit()
+    # Sanity check: a positive gamma is needed for the toggle to be observable.
+    assert cwmodel.gamma[0] > 0.0
+
+    new_df = pd.DataFrame(
+        {
+            "dorms": np.array([alt_dorm, gold_dorm] * (cwdata.num_obs // 2)),
+            "vals": np.ones(cwdata.num_obs),
+            "se": np.zeros(cwdata.num_obs),
+        }
+    )
+    for cov in cwdata.covs.columns:
+        new_df[cov] = np.ones(cwdata.num_obs)
+
+    kwargs = dict(
+        df=new_df, orig_dorms="dorms", orig_vals_mean="vals", orig_vals_se="se"
+    )
+    pred_with = cwmodel.adjust_orig_vals(**kwargs, include_gamma=True)
+    pred_without = cwmodel.adjust_orig_vals(**kwargs, include_gamma=False)
+
+    assert np.allclose(pred_with["ref_vals_mean"], pred_without["ref_vals_mean"])
+
+    gold_rows = new_df["dorms"].values == gold_dorm
+    alt_rows = ~gold_rows
+    assert np.allclose(
+        pred_with.loc[gold_rows, "ref_vals_sd"],
+        pred_without.loc[gold_rows, "ref_vals_sd"],
+    )
+    assert (
+        pred_with.loc[alt_rows, "ref_vals_sd"]
+        > pred_without.loc[alt_rows, "ref_vals_sd"]
+    ).all()
+
+
 @pytest.mark.parametrize("cov_name", ["cov0", "cov1"])
 @pytest.mark.parametrize("spline", [None, XSpline(np.linspace(-2.0, 2.0, 3), 3)])
 @pytest.mark.parametrize("soln_name", [None, "cov"])
