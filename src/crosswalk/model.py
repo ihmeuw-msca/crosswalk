@@ -621,10 +621,13 @@ class CWModel:
             }
         )
         if self.use_random_intercept:
-            gamma = np.hstack((self.lt.gamma, np.full(self.num_vars - 1, np.nan)))
+            gamma = np.hstack((self.gamma, np.full(self.num_vars - 1, np.nan)))
+            u = np.vstack(
+                [self.random_vars[sid] for sid in self.cwdata.unique_study_id]
+            )
             re = np.hstack(
                 (
-                    self.lt.u,
+                    u,
                     np.full((self.cwdata.num_studies, self.num_vars - 1), np.nan),
                 )
             )
