@@ -90,3 +90,32 @@ def test_data_id(df, data_id):
         assert (np.sort(cwdata.data_id) == np.arange(cwdata.num_obs)).all()
     else:
         assert (np.sort(cwdata.data_id) == np.sort(df[data_id].to_numpy())).all()
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        [0, 1, 2, 3, 4],  # clean index, rows not sorted by study_id
+        [3, 0, 4, 1, 2],  # permuted integer labels
+        [0, 2, 5, 7, 9],  # gaps, e.g. after filtering
+        ["a", "b", "c", "d", "e"],  # string labels, e.g. R row names
+    ],
+)
+def test_sort_by_study_id_keeps_covs_aligned(df, index):
+    df = df.copy()
+    df["cov0"] = 10.0 * df["obs"]
+    df.index = index
+    cwdata = data.CWData(
+        df,
+        "obs",
+        "obs_se",
+        "alt_dorms",
+        "ref_dorms",
+        covs=[f"cov{i}" for i in range(num_covs)],
+        study_id="study_id",
+    )
+
+    assert np.all(np.diff(cwdata.study_id) >= 0)
+    assert not cwdata.covs.isna().any().any()
+    assert np.allclose(cwdata.covs["cov0"].to_numpy(), 10.0 * cwdata.obs)
+    assert list(cwdata.covs.index) == list(range(num_obs))

@@ -225,7 +225,6 @@ class CWData:
             self.num_studies, self.study_sizes, self.unique_study_id = (
                 utils.array_structure(self.study_id)
             )
-        self.sort_by_study_id()
 
     def sort_by_study_id(self):
         """Sort the observations and covariates by the study id."""
@@ -237,7 +236,7 @@ class CWData:
             self.obs_se = self.obs_se[sort_id]
             self.alt_dorms = [self.alt_dorms[index] for index in sort_id]
             self.ref_dorms = [self.ref_dorms[index] for index in sort_id]
-            self.covs = self.covs.reindex(sort_id)
+            self.covs = self.covs.iloc[sort_id].reset_index(drop=True)
 
     def copy_dorm_structure(self, cwdata):
         """Copy the dorm structure from other"""
