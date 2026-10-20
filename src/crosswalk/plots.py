@@ -412,9 +412,9 @@ def funnel_plot(
         orig_dorms="obs_method",
         orig_vals_mean="prev",
         orig_vals_se="prev_se",
-    ).to_numpy()
-    y_pred = np.ravel(y_pred)
-    y_mean, y_sd = y_pred[2], y_pred[3]
+    )
+    y_mean = y_pred["pred_diff_mean"].iloc[0]
+    y_sd = y_pred["pred_diff_sd"].iloc[0]
     # Include random effects
     y_sd = np.sqrt(y_sd**2 + cwmodel.gamma[0])
 

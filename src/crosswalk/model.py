@@ -13,6 +13,7 @@ import limetr
 import numpy as np
 import pandas as pd
 from limetr import LimeTr
+from scipy.linalg import solve_triangular
 from xspline import XSpline
 
 from crosswalk import data, utils
@@ -215,6 +216,7 @@ class CWModel:
         # place holder for the solutions
         self.beta = None
         self.beta_sd = None
+        self.beta_vcov = None
         self.gamma = None
         self.fixed_vars = None
         self.random_vars = None
@@ -333,6 +335,7 @@ class CWModel:
         # place holder for the solutions
         self.beta = None
         self.beta_sd = None
+        self.beta_vcov = None
         self.gamma = None
         self.fixed_vars = None
         self.random_vars = None
@@ -569,8 +572,32 @@ class CWModel:
                 if dorm != self.gold_dorm
             ]
         )
-        self.beta_sd = np.zeros(self.lt.k_beta)
-        self.beta_sd[unconstrained_id] = np.sqrt(np.diag(np.linalg.inv(hessian)))
+        # Cholesky factor of the Hessian of the non-gold coefficients, kept so
+        # that prediction variances x' H^{-1} x include the covariances
+        self._unconstrained_id = unconstrained_id
+        self._beta_hessian_chol = np.linalg.cholesky(hessian)
+        chol_inv = solve_triangular(
+            self._beta_hessian_chol, np.identity(hessian.shape[0]), lower=True
+        )
+        self.beta_vcov = np.zeros((self.lt.k_beta, self.lt.k_beta))
+        self.beta_vcov[np.ix_(unconstrained_id, unconstrained_id)] = (
+            chol_inv.T.dot(chol_inv)
+        )
+        self.beta_sd = np.sqrt(np.diag(self.beta_vcov))
+
+    def get_pred_sd(self, design_mat: np.ndarray) -> np.ndarray:
+        """Standard deviation of the linear predictor for each row of a design
+        matrix, sqrt(x' V x) with V the covariance matrix of the coefficients.
+
+        Args:
+            design_mat (np.ndarray): Design matrix, one row per prediction.
+
+        Returns:
+            np.ndarray: Standard deviation of each prediction.
+        """
+        x = np.atleast_2d(design_mat)[:, self._unconstrained_id]
+        z = solve_triangular(self._beta_hessian_chol, x.T, lower=True)
+        return np.sqrt(np.sum(z**2, axis=0))
 
     def get_beta_hessian(self) -> np.ndarray:
         # compute the posterior distribution of beta
@@ -710,6 +737,15 @@ class CWModel:
             cwdata=new_cwdata, relation_mat=new_relation_mat, cov_mat=new_cov_mat
         )
 
+        # rows already in their target dorm (the gold dorm unless `ref_dorms` is
+        # given) are left unchanged: no shift, no extra uncertainty
+        no_change = np.array(
+            [
+                sorted(alt) == sorted(ref)
+                for alt, ref in zip(new_cwdata.alt_dorms, new_cwdata.ref_dorms)
+            ]
+        )
+
         # calculate the random effects
         if study_id is not None:
             random_effects = np.array(
@@ -720,7 +756,25 @@ class CWModel:
             )
         else:
             random_effects = np.zeros(df.shape[0])
-        random_effects[df[orig_dorms].values == self.gold_dorm] = 0.0
+        random_effects[no_change] = 0.0
+
+        # random effects are estimated on alt - ref differences of the matched
+        # pairs; for a row converted from the gold dorm to another dorm the
+        # direction is reversed and the sign is not defined, so it gets none
+        from_gold = np.array([alt == [self.gold_dorm] for alt in new_cwdata.alt_dorms])
+        to_non_gold = np.array(
+            [ref != [self.gold_dorm] for ref in new_cwdata.ref_dorms]
+        )
+        if study_id is not None and (from_gold & to_non_gold & ~no_change).any():
+            warnings.warn(
+                "adjust_orig_vals: rows converted from the gold dorm "
+                f"'{self.gold_dorm}' to another reference dorm are adjusted "
+                "without random effects (their study_id is ignored); rows "
+                "converted from an alternative dorm still use them. Converting "
+                "such a row to another dorm and back to the gold dorm will not "
+                "return its original value."
+            )
+        random_effects[from_gold & to_non_gold] = 0.0
 
         # compute the corresponding gold_dorm value
         if self.obs_type == "diff_log":
@@ -735,24 +789,9 @@ class CWModel:
             )
 
         pred_diff_mean = new_design_mat.dot(self.beta)
-        pred_diff_sd = np.sqrt(
-            np.array(
-                [
-                    (
-                        (new_design_mat[i] ** 2).dot(self.beta_sd**2)
-                        if dorm != self.gold_dorm
-                        else 0.0
-                    )
-                    for i, dorm in enumerate(df[orig_dorms])
-                ]
-            )
-        )
-        gamma = np.array(
-            [
-                self.gamma[0] if dorm != self.gold_dorm else 0.0
-                for dorm in df[orig_dorms]
-            ]
-        )
+        pred_diff_sd = self.get_pred_sd(new_design_mat)
+        pred_diff_sd[no_change] = 0.0
+        gamma = np.where(no_change, 0.0, self.gamma[0])
 
         transformed_ref_vals_mean = (
             transformed_orig_vals_mean - pred_diff_mean - random_effects
